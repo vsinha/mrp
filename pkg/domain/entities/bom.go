@@ -29,10 +29,27 @@ type BOMLine struct {
 	QtyPer      Quantity
 	FindNumber  int
 	Effectivity SerialEffectivity
+
+	// AlternateGroup groups multiple BOM lines that can substitute for each other.
+	// Lines with the same AlternateGroup, ParentPN, and FindNumber represent
+	// interchangeable parts. Empty string means no alternates (standard BOM line).
+	//
+	// Example: "F1_TURBOPUMP_ALT" groups F1_TURBOPUMP_V1 and F1_TURBOPUMP_V2
+	// as alternates that can both fulfill the turbopump requirement on F1_ENGINE.
+	AlternateGroup string
+
+	// Priority determines selection order within an AlternateGroup.
+	// Lower numbers = higher priority (1 = primary, 2 = first alternate, etc.).
+	// When multiple lines have the same priority, they are equally preferred.
+	//
+	// MRP logic selects the highest priority alternate that satisfies the serial
+	// effectivity for the target serial number. Inventory availability may also
+	// influence selection within the same priority level.
+	Priority int
 }
 
 // NewBOMLine creates a validated BOMLine
-func NewBOMLine(parentPN, childPN PartNumber, qtyPer Quantity, findNumber int, effectivity SerialEffectivity) (*BOMLine, error) {
+func NewBOMLine(parentPN, childPN PartNumber, qtyPer Quantity, findNumber int, effectivity SerialEffectivity, alternateGroup string, priority int) (*BOMLine, error) {
 	if string(parentPN) == "" {
 		return nil, fmt.Errorf("parent part number cannot be empty")
 	}
@@ -48,12 +65,17 @@ func NewBOMLine(parentPN, childPN PartNumber, qtyPer Quantity, findNumber int, e
 	if findNumber <= 0 {
 		return nil, fmt.Errorf("find number must be positive, got %d", findNumber)
 	}
+	if priority < 0 {
+		return nil, fmt.Errorf("priority cannot be negative, got %d", priority)
+	}
 
 	return &BOMLine{
-		ParentPN:    parentPN,
-		ChildPN:     childPN,
-		QtyPer:      qtyPer,
-		FindNumber:  findNumber,
-		Effectivity: effectivity,
+		ParentPN:       parentPN,
+		ChildPN:        childPN,
+		QtyPer:         qtyPer,
+		FindNumber:     findNumber,
+		Effectivity:    effectivity,
+		AlternateGroup: alternateGroup,
+		Priority:       priority,
 	}, nil
 }

@@ -297,7 +297,7 @@ func parseBOMLine(record []string) (entities.BOMLine, error) {
 		return entities.BOMLine{}, fmt.Errorf("invalid serial effectivity: %w", err)
 	}
 
-	bomLine, err := entities.NewBOMLine(parentPN, childPN, entities.Quantity(qtyPer), findNumber, *effectivity)
+	bomLine, err := entities.NewBOMLine(parentPN, childPN, entities.Quantity(qtyPer), findNumber, *effectivity, "", 0)
 	if err != nil {
 		return entities.BOMLine{}, fmt.Errorf("invalid BOM line: %w", err)
 	}
