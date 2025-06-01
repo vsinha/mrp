@@ -7,6 +7,7 @@ import (
 	"github.com/vsinha/mrp/pkg/domain/entities"
 	"github.com/vsinha/mrp/pkg/domain/repositories"
 	"github.com/vsinha/mrp/pkg/domain/services"
+	"github.com/vsinha/mrp/pkg/domain/services/bom_validator"
 )
 
 // BOMRepository provides a memory-efficient BOM storage implementation
@@ -32,6 +33,10 @@ var _ repositories.BOMRepository = (*BOMRepository)(nil)
 func (r *BOMRepository) LoadBOMLines(lines []*entities.BOMLine) error {
 	for _, line := range lines {
 		r.AddBOMLine(*line)
+	}
+	validationResult := bom_validator.ValidateBOM(r.bomLines)
+	if validationResult.HasCycles {
+		return fmt.Errorf("BOM validation failed: %v", validationResult.Errors)
 	}
 	return nil
 }

@@ -118,7 +118,14 @@ func TestMRPService_ExplodeDemand_SerialEffectivity(t *testing.T) {
 				},
 			}
 
-			result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
+			result, err := service.ExplodeDemand(
+				ctx,
+				demands,
+				bomRepo,
+				itemRepo,
+				inventoryRepo,
+				demandRepo,
+			)
 			if err != nil {
 				t.Fatalf("ExplodeDemand failed: %v", err)
 			}

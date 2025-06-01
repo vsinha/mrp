@@ -1,30 +1,22 @@
-package services
+package bom_validator
 
 import (
 	"fmt"
 
-	"github.com/virajbhartiya/mrp/pkg/domain/entities"
+	"github.com/vsinha/mrp/pkg/domain/entities"
 )
-
-// BOMValidator provides validation for BOM structure integrity
-type BOMValidator struct{}
-
-// NewBOMValidator creates a new BOM validator
-func NewBOMValidator() *BOMValidator {
-	return &BOMValidator{}
-}
 
 // ValidationResult contains the results of BOM validation
 type ValidationResult struct {
-	HasCycles     bool
-	CyclePaths    [][]entities.PartNumber
+	HasCycles      bool
+	CyclePaths     [][]entities.PartNumber
 	DuplicateLines []entities.BOMLine
-	OrphanedParts []entities.PartNumber
-	Errors        []string
+	OrphanedParts  []entities.PartNumber
+	Errors         []string
 }
 
 // ValidateBOM performs comprehensive validation on a set of BOM lines
-func (v *BOMValidator) ValidateBOM(bomLines []entities.BOMLine) *ValidationResult {
+func ValidateBOM(bomLines []entities.BOMLine) *ValidationResult {
 	result := &ValidationResult{
 		CyclePaths:     make([][]entities.PartNumber, 0),
 		DuplicateLines: make([]entities.BOMLine, 0),
@@ -33,15 +25,15 @@ func (v *BOMValidator) ValidateBOM(bomLines []entities.BOMLine) *ValidationResul
 	}
 
 	// Build adjacency map for cycle detection
-	adjacencyMap := v.buildAdjacencyMap(bomLines)
+	adjacencyMap := buildAdjacencyMap(bomLines)
 
 	// Detect cycles
-	cycles := v.detectCycles(adjacencyMap)
+	cycles := detectCycles(adjacencyMap)
 	result.HasCycles = len(cycles) > 0
 	result.CyclePaths = cycles
 
 	// Detect duplicate BOM lines
-	duplicates := v.detectDuplicateLines(bomLines)
+	duplicates := detectDuplicateLines(bomLines)
 	result.DuplicateLines = duplicates
 
 	// Add validation errors
@@ -52,14 +44,17 @@ func (v *BOMValidator) ValidateBOM(bomLines []entities.BOMLine) *ValidationResul
 	}
 
 	if len(result.DuplicateLines) > 0 {
-		result.Errors = append(result.Errors, fmt.Sprintf("Found %d duplicate BOM lines", len(result.DuplicateLines)))
+		result.Errors = append(
+			result.Errors,
+			fmt.Sprintf("Found %d duplicate BOM lines", len(result.DuplicateLines)),
+		)
 	}
 
 	return result
 }
 
 // buildAdjacencyMap creates a map of parent -> children relationships
-func (v *BOMValidator) buildAdjacencyMap(bomLines []entities.BOMLine) map[entities.PartNumber][]entities.PartNumber {
+func buildAdjacencyMap(bomLines []entities.BOMLine) map[entities.PartNumber][]entities.PartNumber {
 	adjacencyMap := make(map[entities.PartNumber][]entities.PartNumber)
 
 	for _, line := range bomLines {
@@ -67,7 +62,7 @@ func (v *BOMValidator) buildAdjacencyMap(bomLines []entities.BOMLine) map[entiti
 		if !exists {
 			children = make([]entities.PartNumber, 0)
 		}
-		
+
 		// Avoid duplicate children in adjacency list
 		found := false
 		for _, child := range children {
@@ -76,7 +71,7 @@ func (v *BOMValidator) buildAdjacencyMap(bomLines []entities.BOMLine) map[entiti
 				break
 			}
 		}
-		
+
 		if !found {
 			children = append(children, line.ChildPN)
 			adjacencyMap[line.ParentPN] = children
@@ -87,7 +82,9 @@ func (v *BOMValidator) buildAdjacencyMap(bomLines []entities.BOMLine) map[entiti
 }
 
 // detectCycles uses DFS to find cycles in the BOM structure
-func (v *BOMValidator) detectCycles(adjacencyMap map[entities.PartNumber][]entities.PartNumber) [][]entities.PartNumber {
+func detectCycles(
+	adjacencyMap map[entities.PartNumber][]entities.PartNumber,
+) [][]entities.PartNumber {
 	visited := make(map[entities.PartNumber]bool)
 	recursionStack := make(map[entities.PartNumber]bool)
 	cycles := make([][]entities.PartNumber, 0)
@@ -96,7 +93,7 @@ func (v *BOMValidator) detectCycles(adjacencyMap map[entities.PartNumber][]entit
 	for parent := range adjacencyMap {
 		if !visited[parent] {
 			path := make([]entities.PartNumber, 0)
-			v.dfsDetectCycle(parent, adjacencyMap, visited, recursionStack, path, &cycles)
+			dfsDetectCycle(parent, adjacencyMap, visited, recursionStack, path, &cycles)
 		}
 	}
 
@@ -104,7 +101,7 @@ func (v *BOMValidator) detectCycles(adjacencyMap map[entities.PartNumber][]entit
 }
 
 // dfsDetectCycle performs depth-first search to detect cycles
-func (v *BOMValidator) dfsDetectCycle(
+func dfsDetectCycle(
 	current entities.PartNumber,
 	adjacencyMap map[entities.PartNumber][]entities.PartNumber,
 	visited map[entities.PartNumber]bool,
@@ -121,7 +118,7 @@ func (v *BOMValidator) dfsDetectCycle(
 	if exists {
 		for _, child := range children {
 			if !visited[child] {
-				v.dfsDetectCycle(child, adjacencyMap, visited, recursionStack, path, cycles)
+				dfsDetectCycle(child, adjacencyMap, visited, recursionStack, path, cycles)
 			} else if recursionStack[child] {
 				// Found a cycle - extract the cycle path
 				cycleStart := -1
@@ -131,7 +128,7 @@ func (v *BOMValidator) dfsDetectCycle(
 						break
 					}
 				}
-				
+
 				if cycleStart != -1 {
 					cycle := make([]entities.PartNumber, 0)
 					cycle = append(cycle, path[cycleStart:]...)
@@ -146,14 +143,14 @@ func (v *BOMValidator) dfsDetectCycle(
 }
 
 // detectDuplicateLines finds duplicate BOM lines (same parent, child, find number)
-func (v *BOMValidator) detectDuplicateLines(bomLines []entities.BOMLine) []entities.BOMLine {
+func detectDuplicateLines(bomLines []entities.BOMLine) []entities.BOMLine {
 	seen := make(map[string]entities.BOMLine)
 	duplicates := make([]entities.BOMLine, 0)
 
 	for _, line := range bomLines {
 		// Create a unique key for parent, child, and find number
 		key := fmt.Sprintf("%s|%s|%d", line.ParentPN, line.ChildPN, line.FindNumber)
-		
+
 		if existingLine, exists := seen[key]; exists {
 			// This is a duplicate
 			duplicates = append(duplicates, line)
@@ -167,7 +164,7 @@ func (v *BOMValidator) detectDuplicateLines(bomLines []entities.BOMLine) []entit
 }
 
 // ValidatePartNumberUniqueness validates that part numbers are unique across items
-func (v *BOMValidator) ValidatePartNumberUniqueness(items []entities.Item) *ValidationResult {
+func ValidatePartNumberUniqueness(items []entities.Item) *ValidationResult {
 	result := &ValidationResult{
 		Errors: make([]string, 0),
 	}
@@ -184,7 +181,10 @@ func (v *BOMValidator) ValidatePartNumberUniqueness(items []entities.Item) *Vali
 	}
 
 	if len(duplicates) > 0 {
-		result.Errors = append(result.Errors, fmt.Sprintf("Duplicate part numbers found: %v", duplicates))
+		result.Errors = append(
+			result.Errors,
+			fmt.Sprintf("Duplicate part numbers found: %v", duplicates),
+		)
 	}
 
 	return result

@@ -14,7 +14,14 @@ func TestPlanningOrchestrator_AnalyzeCriticalPathWithMRPResults(t *testing.T) {
 
 	mrpService := NewMRPService()
 	criticalPathService := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
-	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService, bomRepo, itemRepo, inventoryRepo, demandRepo)
+	orchestrator := NewPlanningOrchestrator(
+		mrpService,
+		criticalPathService,
+		bomRepo,
+		itemRepo,
+		inventoryRepo,
+		demandRepo,
+	)
 
 	// Create a demand for F1_ENGINE
 	demand := &entities.DemandRequirement{
