@@ -162,24 +162,17 @@ func (l *Loader) LoadInventory(filename string) ([]*entities.InventoryLot, []*en
 				return nil, nil, fmt.Errorf("invalid quantity in row %d: %s", i+2, quantityStr)
 			}
 
-			lot := &entities.InventoryLot{
-				PartNumber:  partNumber,
-				LotNumber:   identifier,
-				Location:    location,
-				Quantity:    entities.Quantity(quantity),
-				ReceiptDate: receiptDate,
-				Status:      status,
+			lot, err := entities.NewInventoryLot(partNumber, identifier, location, entities.Quantity(quantity), receiptDate, status)
+			if err != nil {
+				return nil, nil, fmt.Errorf("invalid inventory lot in row %d: %w", i+2, err)
 			}
 			lotInventory = append(lotInventory, lot)
 
 		case "serial":
 			// For serialized inventory, quantity should be 1 (ignore CSV value)
-			serial := &entities.SerializedInventory{
-				PartNumber:   partNumber,
-				SerialNumber: identifier,
-				Location:     location,
-				Status:       status,
-				ReceiptDate:  receiptDate,
+			serial, err := entities.NewSerializedInventory(partNumber, identifier, location, status, receiptDate)
+			if err != nil {
+				return nil, nil, fmt.Errorf("invalid serialized inventory in row %d: %w", i+2, err)
 			}
 			serialInventory = append(serialInventory, serial)
 
@@ -275,15 +268,11 @@ func parseItem(record []string) (entities.Item, error) {
 
 	unitOfMeasure := record[6]
 
-	return entities.Item{
-		PartNumber:    partNumber,
-		Description:   description,
-		LeadTimeDays:  leadTimeDays,
-		LotSizeRule:   lotSizeRule,
-		MinOrderQty:   entities.Quantity(minOrderQty),
-		SafetyStock:   entities.Quantity(safetyStock),
-		UnitOfMeasure: unitOfMeasure,
-	}, nil
+	item, err := entities.NewItem(partNumber, description, leadTimeDays, lotSizeRule, entities.Quantity(minOrderQty), entities.Quantity(safetyStock), unitOfMeasure)
+	if err != nil {
+		return entities.Item{}, fmt.Errorf("invalid item: %w", err)
+	}
+	return *item, nil
 }
 
 func parseBOMLine(record []string) (entities.BOMLine, error) {
@@ -303,13 +292,16 @@ func parseBOMLine(record []string) (entities.BOMLine, error) {
 	fromSerial := record[4]
 	toSerial := record[5]
 
-	return entities.BOMLine{
-		ParentPN:    parentPN,
-		ChildPN:     childPN,
-		QtyPer:      entities.Quantity(qtyPer),
-		FindNumber:  findNumber,
-		Effectivity: entities.SerialEffectivity{FromSerial: fromSerial, ToSerial: toSerial},
-	}, nil
+	effectivity, err := entities.NewSerialEffectivity(fromSerial, toSerial)
+	if err != nil {
+		return entities.BOMLine{}, fmt.Errorf("invalid serial effectivity: %w", err)
+	}
+
+	bomLine, err := entities.NewBOMLine(parentPN, childPN, entities.Quantity(qtyPer), findNumber, *effectivity)
+	if err != nil {
+		return entities.BOMLine{}, fmt.Errorf("invalid BOM line: %w", err)
+	}
+	return *bomLine, nil
 }
 
 func parseDemand(record []string) (entities.DemandRequirement, error) {

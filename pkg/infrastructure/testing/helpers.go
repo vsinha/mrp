@@ -7,6 +7,37 @@ import (
 	"github.com/vsinha/mrp/pkg/infrastructure/repositories/memory"
 )
 
+// mustCreateItem is a helper for tests - panics on validation error
+func mustCreateItem(partNumber, description string, leadTime int, lotRule entities.LotSizeRule, minOrderQty, safetyStock entities.Quantity, uom string) *entities.Item {
+	item, err := entities.NewItem(entities.PartNumber(partNumber), description, leadTime, lotRule, minOrderQty, safetyStock, uom)
+	if err != nil {
+		panic(err)
+	}
+	return item
+}
+
+// mustCreateBOMLine is a helper for tests - panics on validation error
+func mustCreateBOMLine(parentPN, childPN string, qtyPer entities.Quantity, findNumber int, fromSerial, toSerial string) *entities.BOMLine {
+	effectivity, err := entities.NewSerialEffectivity(fromSerial, toSerial)
+	if err != nil {
+		panic(err)
+	}
+	bomLine, err := entities.NewBOMLine(entities.PartNumber(parentPN), entities.PartNumber(childPN), qtyPer, findNumber, *effectivity)
+	if err != nil {
+		panic(err)
+	}
+	return bomLine
+}
+
+// mustCreateInventoryLot is a helper for tests - panics on validation error
+func mustCreateInventoryLot(partNumber, lotNumber, location string, quantity entities.Quantity, receiptDate time.Time, status entities.InventoryStatus) *entities.InventoryLot {
+	lot, err := entities.NewInventoryLot(entities.PartNumber(partNumber), lotNumber, location, quantity, receiptDate, status)
+	if err != nil {
+		panic(err)
+	}
+	return lot
+}
+
 // BuildAerospaceTestData builds the aerospace test scenario from the specification
 func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *memory.InventoryRepository, *memory.DemandRepository) {
 	bomRepo := memory.NewBOMRepository(10, 20) // 10 items, 20 BOM lines
@@ -16,60 +47,12 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 
 	// Add items
 	items := []*entities.Item{
-		{
-			PartNumber:    "SATURN_V",
-			Description:   "Saturn V Launch Vehicle",
-			LeadTimeDays:  180,
-			LotSizeRule:   entities.LotForLot,
-			MinOrderQty:   entities.Quantity(1),
-			SafetyStock:   entities.Quantity(0),
-			UnitOfMeasure: "EA",
-		},
-		{
-			PartNumber:    "F1_ENGINE",
-			Description:   "F-1 Engine Assembly",
-			LeadTimeDays:  120,
-			LotSizeRule:   entities.MinimumQty,
-			MinOrderQty:   entities.Quantity(10),
-			SafetyStock:   entities.Quantity(2),
-			UnitOfMeasure: "EA",
-		},
-		{
-			PartNumber:    "J2_ENGINE_V1",
-			Description:   "J-2 Engine V1",
-			LeadTimeDays:  90,
-			LotSizeRule:   entities.LotForLot,
-			MinOrderQty:   entities.Quantity(1),
-			SafetyStock:   entities.Quantity(0),
-			UnitOfMeasure: "EA",
-		},
-		{
-			PartNumber:    "J2_ENGINE_V2",
-			Description:   "J-2 Engine V2",
-			LeadTimeDays:  90,
-			LotSizeRule:   entities.LotForLot,
-			MinOrderQty:   entities.Quantity(1),
-			SafetyStock:   entities.Quantity(0),
-			UnitOfMeasure: "EA",
-		},
-		{
-			PartNumber:    "F1_TURBOPUMP_V1",
-			Description:   "F-1 Turbopump Assembly V1",
-			LeadTimeDays:  60,
-			LotSizeRule:   entities.LotForLot,
-			MinOrderQty:   entities.Quantity(1),
-			SafetyStock:   entities.Quantity(0),
-			UnitOfMeasure: "EA",
-		},
-		{
-			PartNumber:    "F1_TURBOPUMP_V2",
-			Description:   "F-1 Turbopump Assembly V2",
-			LeadTimeDays:  60,
-			LotSizeRule:   entities.LotForLot,
-			MinOrderQty:   entities.Quantity(1),
-			SafetyStock:   entities.Quantity(0),
-			UnitOfMeasure: "EA",
-		},
+		mustCreateItem("SATURN_V", "Saturn V Launch Vehicle", 180, entities.LotForLot, entities.Quantity(1), entities.Quantity(0), "EA"),
+		mustCreateItem("F1_ENGINE", "F-1 Engine Assembly", 120, entities.MinimumQty, entities.Quantity(10), entities.Quantity(2), "EA"),
+		mustCreateItem("J2_ENGINE_V1", "J-2 Engine V1", 90, entities.LotForLot, entities.Quantity(1), entities.Quantity(0), "EA"),
+		mustCreateItem("J2_ENGINE_V2", "J-2 Engine V2", 90, entities.LotForLot, entities.Quantity(1), entities.Quantity(0), "EA"),
+		mustCreateItem("F1_TURBOPUMP_V1", "F-1 Turbopump Assembly V1", 60, entities.LotForLot, entities.Quantity(1), entities.Quantity(0), "EA"),
+		mustCreateItem("F1_TURBOPUMP_V2", "F-1 Turbopump Assembly V2", 60, entities.LotForLot, entities.Quantity(1), entities.Quantity(0), "EA"),
 	}
 
 	for _, item := range items {
@@ -81,41 +64,11 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 
 	// Add BOM lines with serial effectivity
 	bomLines := []*entities.BOMLine{
-		{
-			ParentPN:    "SATURN_V",
-			ChildPN:     "F1_ENGINE",
-			QtyPer:      entities.Quantity(5),
-			FindNumber:  100,
-			Effectivity: entities.SerialEffectivity{FromSerial: "AS501", ToSerial: ""},
-		},
-		{
-			ParentPN:    "SATURN_V",
-			ChildPN:     "J2_ENGINE_V1",
-			QtyPer:      entities.Quantity(6),
-			FindNumber:  200,
-			Effectivity: entities.SerialEffectivity{FromSerial: "AS501", ToSerial: "AS506"},
-		},
-		{
-			ParentPN:    "SATURN_V",
-			ChildPN:     "J2_ENGINE_V2",
-			QtyPer:      entities.Quantity(6),
-			FindNumber:  200,
-			Effectivity: entities.SerialEffectivity{FromSerial: "AS507", ToSerial: ""},
-		},
-		{
-			ParentPN:    "F1_ENGINE",
-			ChildPN:     "F1_TURBOPUMP_V1",
-			QtyPer:      entities.Quantity(1),
-			FindNumber:  300,
-			Effectivity: entities.SerialEffectivity{FromSerial: "AS501", ToSerial: "AS505"},
-		},
-		{
-			ParentPN:    "F1_ENGINE",
-			ChildPN:     "F1_TURBOPUMP_V2",
-			QtyPer:      entities.Quantity(1),
-			FindNumber:  300,
-			Effectivity: entities.SerialEffectivity{FromSerial: "AS506", ToSerial: ""},
-		},
+		mustCreateBOMLine("SATURN_V", "F1_ENGINE", entities.Quantity(5), 100, "AS501", ""),
+		mustCreateBOMLine("SATURN_V", "J2_ENGINE_V1", entities.Quantity(6), 200, "AS501", "AS506"),
+		mustCreateBOMLine("SATURN_V", "J2_ENGINE_V2", entities.Quantity(6), 200, "AS507", ""),
+		mustCreateBOMLine("F1_ENGINE", "F1_TURBOPUMP_V1", entities.Quantity(1), 300, "AS501", "AS505"),
+		mustCreateBOMLine("F1_ENGINE", "F1_TURBOPUMP_V2", entities.Quantity(1), 300, "AS506", ""),
 	}
 
 	for _, bomLine := range bomLines {
@@ -129,22 +82,8 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 	baseDate := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
 
 	inventoryLots := []*entities.InventoryLot{
-		{
-			PartNumber:  "F1_ENGINE",
-			LotNumber:   "F1_LOT_001",
-			Location:    "MICHOUD",
-			Quantity:    entities.Quantity(2),
-			Status:      entities.Available,
-			ReceiptDate: baseDate,
-		},
-		{
-			PartNumber:  "F1_ENGINE",
-			LotNumber:   "F1_LOT_002",
-			Location:    "STENNIS",
-			Quantity:    entities.Quantity(1),
-			Status:      entities.Available,
-			ReceiptDate: baseDate.Add(4 * 24 * time.Hour),
-		},
+		mustCreateInventoryLot("F1_ENGINE", "F1_LOT_001", "MICHOUD", entities.Quantity(2), baseDate, entities.Available),
+		mustCreateInventoryLot("F1_ENGINE", "F1_LOT_002", "STENNIS", entities.Quantity(1), baseDate.Add(4*24*time.Hour), entities.Available),
 	}
 
 	for _, lot := range inventoryLots {

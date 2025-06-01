@@ -111,7 +111,10 @@ func (s *MRPService) ExplodeDemand(ctx context.Context, demands []*entities.Dema
 	result.Allocations = allocations
 
 	// Step 3: Generate planned orders for net requirements
-	plannedOrders := s.createPlannedOrders(netRequirements)
+	plannedOrders, err := s.createPlannedOrders(netRequirements)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create planned orders: %w", err)
+	}
 	result.PlannedOrders = plannedOrders
 
 	// Step 4: Identify shortages
@@ -301,7 +304,7 @@ func (s *MRPService) allocateInventory(ctx context.Context, grossReqs []*entitie
 }
 
 // createPlannedOrders generates planned orders for net requirements
-func (s *MRPService) createPlannedOrders(netReqs []*entities.NetRequirement) []entities.PlannedOrder {
+func (s *MRPService) createPlannedOrders(netReqs []*entities.NetRequirement) ([]entities.PlannedOrder, error) {
 	var orders []entities.PlannedOrder
 
 	for _, netReq := range netReqs {
@@ -309,17 +312,12 @@ func (s *MRPService) createPlannedOrders(netReqs []*entities.NetRequirement) []e
 		item, err := s.itemRepo.GetItem(netReq.PartNumber)
 		if err != nil {
 			// Create order with default values if item not found
-			order := entities.PlannedOrder{
-				PartNumber:   netReq.PartNumber,
-				Quantity:     netReq.Quantity,
-				StartDate:    netReq.NeedDate.Add(-7 * 24 * time.Hour), // Default 7 day lead time
-				DueDate:      netReq.NeedDate,
-				DemandTrace:  netReq.DemandTrace,
-				Location:     netReq.Location,
-				OrderType:    entities.Make, // Default to make
-				TargetSerial: netReq.TargetSerial,
+			startDate := netReq.NeedDate.Add(-7 * 24 * time.Hour) // Default 7 day lead time
+			order, createErr := entities.NewPlannedOrder(netReq.PartNumber, netReq.Quantity, startDate, netReq.NeedDate, netReq.DemandTrace, netReq.Location, entities.Make, netReq.TargetSerial)
+			if createErr != nil {
+				return nil, fmt.Errorf("failed to create planned order for %s: %w", netReq.PartNumber, createErr)
 			}
-			orders = append(orders, order)
+			orders = append(orders, *order)
 			continue
 		}
 
@@ -332,21 +330,16 @@ func (s *MRPService) createPlannedOrders(netReqs []*entities.NetRequirement) []e
 			orderType = entities.Buy // Long lead time items are typically purchased
 		}
 
-		order := entities.PlannedOrder{
-			PartNumber:   netReq.PartNumber,
-			Quantity:     orderQty,
-			StartDate:    netReq.NeedDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour),
-			DueDate:      netReq.NeedDate,
-			DemandTrace:  netReq.DemandTrace,
-			Location:     netReq.Location,
-			OrderType:    orderType,
-			TargetSerial: netReq.TargetSerial,
+		startDate := netReq.NeedDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour)
+		order, err := entities.NewPlannedOrder(netReq.PartNumber, orderQty, startDate, netReq.NeedDate, netReq.DemandTrace, netReq.Location, orderType, netReq.TargetSerial)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create planned order for %s: %w", netReq.PartNumber, err)
 		}
 
-		orders = append(orders, order)
+		orders = append(orders, *order)
 	}
 
-	return orders
+	return orders, nil
 }
 
 // applyLotSizing applies lot sizing rules to determine order quantity
