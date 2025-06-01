@@ -12,7 +12,7 @@ func mustCreateItem(
 	partNumber, description string,
 	leadTime int,
 	lotRule entities.LotSizeRule,
-	minOrderQty, safetyStock entities.Quantity,
+	minOrderQty, maxOrderQty, safetyStock entities.Quantity,
 	uom string,
 ) *entities.Item {
 	item, err := entities.NewItem(
@@ -21,6 +21,7 @@ func mustCreateItem(
 		leadTime,
 		lotRule,
 		minOrderQty,
+		maxOrderQty,
 		safetyStock,
 		uom,
 	)
@@ -117,6 +118,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			180,
 			entities.LotForLot,
 			entities.Quantity(1),
+			entities.Quantity(10), // Max 10 rockets at once
 			entities.Quantity(0),
 			"EA",
 		),
@@ -126,6 +128,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			120,
 			entities.MinimumQty,
 			entities.Quantity(10),
+			entities.Quantity(50), // Max 50 engines at once
 			entities.Quantity(2),
 			"EA",
 		),
@@ -135,6 +138,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			90,
 			entities.LotForLot,
 			entities.Quantity(1),
+			entities.Quantity(30), // Max 30 engines at once
 			entities.Quantity(0),
 			"EA",
 		),
@@ -144,6 +148,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			90,
 			entities.LotForLot,
 			entities.Quantity(1),
+			entities.Quantity(30), // Max 30 engines at once
 			entities.Quantity(0),
 			"EA",
 		),
@@ -153,6 +158,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			60,
 			entities.LotForLot,
 			entities.Quantity(1),
+			entities.Quantity(100), // Max 100 turbopumps at once
 			entities.Quantity(0),
 			"EA",
 		),
@@ -162,6 +168,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			60,
 			entities.LotForLot,
 			entities.Quantity(1),
+			entities.Quantity(100), // Max 100 turbopumps at once
 			entities.Quantity(0),
 			"EA",
 		),
@@ -244,6 +251,7 @@ func BuildSimpleTestData() (*memory.BOMRepository, *memory.ItemRepository, *memo
 			LeadTimeDays:  30,
 			LotSizeRule:   entities.LotForLot,
 			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
 			SafetyStock:   entities.Quantity(0),
 			UnitOfMeasure: "EA",
 		},
@@ -253,6 +261,7 @@ func BuildSimpleTestData() (*memory.BOMRepository, *memory.ItemRepository, *memo
 			LeadTimeDays:  15,
 			LotSizeRule:   entities.LotForLot,
 			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(200),
 			SafetyStock:   entities.Quantity(0),
 			UnitOfMeasure: "EA",
 		},

@@ -3,7 +3,7 @@ package entities
 import "testing"
 
 func TestItem_Validation(t *testing.T) {
-	validItem, err := NewItem("PART123", "Test Part", 10, LotForLot, 1, 0, "EA")
+	validItem, err := NewItem("PART123", "Test Part", 10, LotForLot, 1, 100, 0, "EA")
 	if err != nil {
 		t.Fatalf("Expected valid item creation to succeed: %v", err)
 	}
@@ -19,12 +19,13 @@ func TestItem_Validation(t *testing.T) {
 		leadTime    int
 		lotRule     LotSizeRule
 		minOrderQty Quantity
+		maxOrderQty Quantity
 		safetyStock Quantity
 		uom         string
 		expectError string
 	}{
-		{"empty part number", "", "desc", 1, LotForLot, 0, 0, "EA", "part number cannot be empty"},
-		{"empty description", "PART", "", 1, LotForLot, 0, 0, "EA", "description cannot be empty"},
+		{"empty part number", "", "desc", 1, LotForLot, 0, 100, 0, "EA", "part number cannot be empty"},
+		{"empty description", "PART", "", 1, LotForLot, 0, 100, 0, "EA", "description cannot be empty"},
 		{
 			"zero lead time",
 			"PART",
@@ -32,6 +33,7 @@ func TestItem_Validation(t *testing.T) {
 			0,
 			LotForLot,
 			0,
+			100,
 			0,
 			"EA",
 			"lead time must be positive, got 0",
@@ -43,6 +45,7 @@ func TestItem_Validation(t *testing.T) {
 			-1,
 			LotForLot,
 			0,
+			100,
 			0,
 			"EA",
 			"lead time must be positive, got -1",
@@ -54,6 +57,7 @@ func TestItem_Validation(t *testing.T) {
 			1,
 			LotForLot,
 			-1,
+			100,
 			0,
 			"EA",
 			"minimum order quantity cannot be negative, got -1",
@@ -65,11 +69,12 @@ func TestItem_Validation(t *testing.T) {
 			1,
 			LotForLot,
 			0,
+			100,
 			-1,
 			"EA",
 			"safety stock cannot be negative, got -1",
 		},
-		{"empty UOM", "PART", "desc", 1, LotForLot, 0, 0, "", "unit of measure cannot be empty"},
+		{"empty UOM", "PART", "desc", 1, LotForLot, 0, 100, 0, "", "unit of measure cannot be empty"},
 		{
 			"MinimumQty with zero order qty",
 			"PART",
@@ -77,9 +82,46 @@ func TestItem_Validation(t *testing.T) {
 			1,
 			MinimumQty,
 			0,
+			100,
 			0,
 			"EA",
 			"lot sizing rule MinimumQty requires non-zero minimum order quantity",
+		},
+		{
+			"zero max order qty",
+			"PART",
+			"desc",
+			1,
+			LotForLot,
+			1,
+			0,
+			0,
+			"EA",
+			"maximum order quantity must be positive, got 0",
+		},
+		{
+			"negative max order qty",
+			"PART",
+			"desc",
+			1,
+			LotForLot,
+			1,
+			-1,
+			0,
+			"EA",
+			"maximum order quantity must be positive, got -1",
+		},
+		{
+			"max order qty less than min order qty",
+			"PART",
+			"desc",
+			1,
+			LotForLot,
+			10,
+			5,
+			0,
+			"EA",
+			"maximum order quantity (5) cannot be less than minimum order quantity (10)",
 		},
 	}
 
@@ -91,6 +133,7 @@ func TestItem_Validation(t *testing.T) {
 				tc.leadTime,
 				tc.lotRule,
 				tc.minOrderQty,
+				tc.maxOrderQty,
 				tc.safetyStock,
 				tc.uom,
 			)

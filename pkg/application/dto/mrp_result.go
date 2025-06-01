@@ -8,10 +8,10 @@ import (
 
 // MRPResult contains the complete output of an MRP run
 type MRPResult struct {
-	PlannedOrders  []entities.PlannedOrder
-	Allocations    []entities.AllocationResult
-	ShortageReport []entities.Shortage
-	ExplosionCache map[ExplosionCacheKey]*ExplosionResult
+	PlannedOrders  []entities.PlannedOrder                `json:"planned_orders"`
+	Allocations    []entities.AllocationResult            `json:"allocations"`
+	ShortageReport []entities.Shortage                    `json:"shortages"`
+	ExplosionCache map[ExplosionCacheKey]*ExplosionResult `json:"-"`
 }
 
 // ExplosionCacheKey is used for memoizing BOM explosion results

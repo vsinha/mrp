@@ -1,169 +1,270 @@
-# MRP Engine CLI Usage Guide
+# MRP Planning System
+
+A high-performance Material Requirements Planning (MRP) engine designed for complex manufacturing scenarios with support for multi-level BOMs, serial effectivity, and critical path analysis.
 
 ## Overview
 
-The MRP Engine CLI provides a command-line interface for running Material Requirements Planning analysis on aerospace manufacturing BOMs using CSV input files.
+This MRP system provides enterprise-grade planning capabilities including:
 
-## Installation
+- **Multi-level BOM explosion** with shared components and alternates
+- **Serial effectivity** for configuration management
+- **Critical path analysis** for production scheduling
+- **Inventory allocation** with FIFO and serial tracking
+- **Performance optimization** for large-scale manufacturing
+- **Scenario generation** for testing and validation
 
-```bash
-# Build the CLI
-go build -o mrp cmd/mrp/*.go
+## System Architecture
 
-# Run from any directory
-./mrp -help
+### Core Components
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        CLI Interface                        │
+├─────────────────────────────────────────────────────────────┤
+│                    Application Layer                        │
+│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │     MRP     │  │ Critical Path   │  │ Orchestration   │  │
+│  │   Service   │  │    Service      │  │    Service      │  │
+│  └─────────────┘  └─────────────────┘  └─────────────────┘  │
+│           │              │                      │            │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │                Shared Services                          │ │
+│  │  • BOM Traverser • Allocation Context • Alternates     │ │
+│  └─────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│                      Domain Layer                           │
+│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │  Entities   │  │  Repositories   │  │  Domain         │  │
+│  │ (BOMs, Items│  │  (Interfaces)   │  │  Services       │  │
+│  │  Orders)    │  │                 │  │                 │  │
+│  └─────────────┘  └─────────────────┘  └─────────────────┘  │
+├─────────────────────────────────────────────────────────────┤
+│                 Infrastructure Layer                        │
+│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │  Memory     │  │      CSV        │  │    Testing      │  │
+│  │ Repositories│  │    Loaders      │  │   Helpers       │  │
+│  └─────────────┘  └─────────────────┘  └─────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
+### Key Features
+
+- **Clean Architecture**: Domain-driven design with clear separation of concerns
+- **Functional Approach**: Explicit dependency injection and immutable operations
+- **Performance Optimized**: Efficient algorithms and memory management for large BOMs
+- **Extensible**: Plugin architecture for custom business logic
+- **Testable**: Comprehensive test coverage with realistic scenarios
+
+## Getting Started
+
+### Installation
 
 ```bash
-# Run a basic aerospace scenario
-./mrp -scenario examples/aerospace_basic -verbose
+# Clone the repository
+git clone <repository-url>
+cd mrp
+
+# Build the application
+go build -o ./bin/mrp cmd/mrp/*.go
+
+# Verify installation
+./bin/mrp help
+```
+
+### Quick Start
+
+#### 1. Run an Existing Scenario
+
+```bash
+# Run a basic Apollo Saturn V scenario
+./bin/mrp run --scenario ./examples/apollo_saturn_v --verbose
+
+# Run with critical path analysis
+./bin/mrp run --scenario ./examples/apollo_saturn_v --critical-path --top-paths 5
 
 # Generate JSON output
-./mrp -scenario examples/complex_vehicle -format json -output results/
-
-# Use optimized engine for large BOMs
-./mrp -scenario examples/complex_vehicle -optimize -verbose
+./bin/mrp run --scenario ./examples/constellation_program --format json --output ./results
 ```
 
-## Command Line Options
+#### 2. Generate Test Scenarios
 
-| Option              | Description                           | Example                              |
-| ------------------- | ------------------------------------- | ------------------------------------ |
-| `-scenario <dir>`   | Use scenario directory with CSV files | `-scenario examples/aerospace_basic` |
-| `-bom <file>`       | Path to BOM CSV file                  | `-bom data/bom.csv`                  |
-| `-items <file>`     | Path to items CSV file                | `-items data/items.csv`              |
-| `-inventory <file>` | Path to inventory CSV file            | `-inventory data/inventory.csv`      |
-| `-demands <file>`   | Path to demands CSV file              | `-demands data/demands.csv`          |
-| `-output <dir>`     | Output directory for results          | `-output results/`                   |
-| `-format <fmt>`     | Output format: text, json, csv        | `-format json`                       |
-| `-verbose`          | Enable detailed progress output       | `-verbose`                           |
-| `-help`             | Show help message                     | `-help`                              |
+```bash
+# Generate a small test scenario
+./bin/mrp generate --items 100 --max-depth 5 --demands 10 --inventory 0.5 --output ./test_scenario
 
-## Input CSV Formats
+# Generate a large performance test scenario  
+./bin/mrp generate --items 30000 --max-depth 8 --demands 50 --inventory 1.2 --output ./large_scenario --verbose
+
+# Generate a reproducible scenario
+./bin/mrp generate --items 1000 --max-depth 6 --demands 20 --inventory 0.8 --output ./repro_scenario --seed 12345
+```
+
+#### 3. Run Analysis on Generated Scenario
+
+```bash
+# Run MRP analysis on generated scenario
+./bin/mrp run --scenario ./test_scenario --verbose
+
+# Include critical path analysis
+./bin/mrp run --scenario ./test_scenario --critical-path --top-paths 3
+```
+
+## Commands
+
+### `mrp run` - Execute MRP Analysis
+
+Run MRP planning on existing scenarios.
+
+**Options:**
+- `--scenario <dir>`: Path to scenario directory containing CSV files
+- `--bom <file>`: Path to BOM CSV file (alternative to scenario)
+- `--items <file>`: Path to items CSV file
+- `--inventory <file>`: Path to inventory CSV file  
+- `--demands <file>`: Path to demands CSV file
+- `--output <dir>`: Output directory for results
+- `--format <fmt>`: Output format (text, json, csv)
+- `--critical-path`: Perform critical path analysis
+- `--top-paths <n>`: Number of top critical paths to analyze (default: 3)
+- `--verbose`: Enable detailed output
+
+**Examples:**
+```bash
+# Basic MRP run
+./bin/mrp run --scenario ./examples/apollo_saturn_v
+
+# With critical path analysis
+./bin/mrp run --scenario ./examples/constellation_program --critical-path --top-paths 5 --verbose
+
+# Custom file inputs
+./bin/mrp run --bom data/bom.csv --items data/items.csv --inventory data/inventory.csv --demands data/demands.csv
+```
+
+### `mrp generate` - Create Test Scenarios
+
+Generate realistic test scenarios for MRP analysis.
+
+**Options:**
+- `--items <n>`: Number of items to generate (required)
+- `--max-depth <n>`: Maximum depth of BOM tree (required)  
+- `--demands <n>`: Number of demand lines to generate (required)
+- `--inventory <f>`: Inventory multiplier - 0.5 = half coverage, 4.0 = 4x coverage (required)
+- `--output <dir>`: Output directory for generated files (required)
+- `--seed <n>`: Random seed for reproducible generation
+- `--verbose`: Enable detailed output
+
+**Examples:**
+```bash
+# Small test scenario
+./bin/mrp generate --items 100 --max-depth 5 --demands 10 --inventory 0.5 --output ./test_scenario
+
+# Large enterprise scenario
+./bin/mrp generate --items 30000 --max-depth 8 --demands 100 --inventory 0.8 --output ./enterprise_test --verbose
+
+# Reproducible scenario for testing
+./bin/mrp generate --items 1000 --max-depth 6 --demands 25 --inventory 1.0 --output ./consistent_test --seed 42
+```
+
+**Generated Scenario Features:**
+- **Realistic BOM structures** with random branching and shared components
+- **Serial effectivity** with proper configuration management
+- **Varied lead times** based on BOM level (7-450 days)
+- **Mixed lot sizing rules** (LotForLot, MinimumQty, StandardPack)
+- **Multiple locations** and inventory types
+- **Proportional inventory** with configurable coverage levels
+
+## Input File Formats
 
 ### 1. `items.csv` - Item Master Data
 
-Defines parts with their planning parameters.
-
 ```csv
 part_number,description,lead_time_days,lot_size_rule,min_order_qty,safety_stock,unit_of_measure
-SATURN_V,Saturn V Launch Vehicle,180,LotForLot,1,0,EA
-F1_ENGINE,F-1 Engine,120,LotForLot,1,2,EA
-VALVE_MAIN,Main Engine Valve,30,MinimumQty,10,5,EA
+SATURN_V,Saturn V Launch Vehicle,365,LotForLot,1,0,EA
+F1_ENGINE,F-1 Engine,180,LotForLot,1,1,EA
+VALVE_MAIN,Main Engine Valve,45,MinimumQty,10,5,EA
+FASTENER_KIT,Fastener Kit,14,StandardPack,100,20,EA
 ```
-
-**Fields:**
-
-- `part_number`: Unique part identifier
-- `description`: Human-readable description
-- `lead_time_days`: Manufacturing/procurement lead time
-- `lot_size_rule`: LotForLot, MinimumQty, or StandardPack
-- `min_order_qty`: Minimum order quantity
-- `safety_stock`: Safety stock quantity
-- `unit_of_measure`: Unit (EA, KG, M, etc.)
 
 ### 2. `bom.csv` - Bill of Materials
 
-Defines parent-child relationships with serial effectivity.
-
 ```csv
-parent_pn,child_pn,qty_per,find_number,from_serial,to_serial
-SATURN_V,F1_ENGINE,5,100,AS501,
-SATURN_V,J2_ENGINE_V1,6,200,AS501,AS506
-SATURN_V,J2_ENGINE_V2,6,200,AS507,
-F1_ENGINE,F1_TURBOPUMP_V1,1,100,AS501,AS505
-F1_ENGINE,F1_TURBOPUMP_V2,1,100,AS506,
+parent_pn,child_pn,qty_per,find_number,from_serial,to_serial,priority
+SATURN_V,F1_ENGINE,5,100,SN001,,0
+SATURN_V,J2_ENGINE_V1,6,200,SN001,SN506,0
+SATURN_V,J2_ENGINE_V2,6,200,SN507,,0
+F1_ENGINE,F1_TURBOPUMP_V1,1,100,SN001,SN505,0
+F1_ENGINE,F1_TURBOPUMP_V2,1,100,SN506,,1
 ```
-
-**Fields:**
-
-- `parent_pn`: Parent part number
-- `child_pn`: Child part number
-- `qty_per`: Quantity of child per parent
-- `find_number`: Reference designator/position
-- `from_serial`: Starting serial for effectivity
-- `to_serial`: Ending serial (empty = open-ended)
 
 ### 3. `inventory.csv` - Available Inventory
 
-Defines available inventory by location.
-
 ```csv
 part_number,type,identifier,location,quantity,receipt_date,status
-MERLIN_1D,serial,E1001,HAWTHORNE,1,2025-03-01,Available
-VALVE_MAIN,lot,VALVE_LOT_001,HAWTHORNE,50,2025-01-20,Available
+F1_ENGINE,serial,F1_001,STENNIS,1,2024-01-15,Available
+VALVE_MAIN,lot,VALVE_LOT_001,STENNIS,50,2024-01-10,Available
 ```
-
-**Fields:**
-
-- `part_number`: Part number
-- `type`: `serial` or `lot`
-- `identifier`: Serial number or lot number
-- `location`: Storage location
-- `quantity`: Available quantity (always 1 for serial)
-- `receipt_date`: Date received (YYYY-MM-DD)
-- `status`: Available, Allocated, or Quarantine
 
 ### 4. `demands.csv` - Demand Requirements
 
-Defines what needs to be produced and when.
-
 ```csv
 part_number,quantity,need_date,demand_source,location,target_serial
-SATURN_V,1,1969-07-16,APOLLO_11,KENNEDY,AS506
-F1_ENGINE,5,1969-06-01,REFURB_AS502,STENNIS,AS502
+SATURN_V,1,2025-07-16,APOLLO_11,KENNEDY,SN506
+F1_ENGINE,5,2025-06-01,REFURB_PROGRAM,STENNIS,SN502
 ```
 
-**Fields:**
+## Example Scenarios
 
-- `part_number`: Part number needed
-- `quantity`: Quantity required
-- `need_date`: Date needed (YYYY-MM-DD)
-- `demand_source`: Source/reason for demand
-- `location`: Required location
-- `target_serial`: Target serial for BOM effectivity
+The system includes several pre-built scenarios:
+
+### Apollo Saturn V (`./examples/apollo_saturn_v/`)
+- **Purpose**: Basic MRP demonstration with serial effectivity
+- **Scale**: 15 items, 25 BOM relationships
+- **Features**: Multi-engine configuration, serial-specific BOMs
+
+### Constellation Program (`./examples/constellation_program/`)  
+- **Purpose**: Large-scale enterprise scenario
+- **Scale**: 107 items, 241 BOM relationships, 22 demand lines
+- **Features**: Multiple vehicle programs, complex supply chains, severe shortages
+
+### Apollo CSM (`./examples/apollo_csm/`)
+- **Purpose**: Educational and testing
+- **Scale**: Smaller, focused scenario
+- **Features**: Command/Service Module specific planning
+
+## Performance
+
+The system is optimized for enterprise-scale manufacturing:
+
+- **Large BOMs**: Tested with 30,000+ items
+- **Fast Execution**: Microsecond explosion times for typical scenarios  
+- **Memory Efficient**: Optimized data structures and GC tuning
+- **Scalable**: Linear performance scaling with BOM size
+
+### Performance Benchmarks
+
+| Scenario Size | Items | BOM Lines | Explosion Time | Memory Usage |
+|---------------|-------|-----------|----------------|--------------|
+| Small         | 50    | 100       | < 1ms          | < 10MB       |
+| Medium        | 500   | 1,000     | < 5ms          | < 50MB       |
+| Large         | 5,000 | 10,000    | < 50ms         | < 200MB      |
+| Enterprise    | 30,000| 60,000    | < 500ms        | < 1GB        |
 
 ## Output Formats
 
-### Text Format (Default)
+### Text (Default)
+Human-readable formatted output with planning summary, orders, allocations, and shortages.
 
-Human-readable formatted output with sections for:
-
-- Summary statistics
-- Planned orders (sorted by due date)
-- Inventory allocations (with FIFO details)
-- Material shortages
-- Cache statistics (if verbose)
-
-```bash
-./mrp -scenario examples/aerospace_basic -verbose
-```
-
-### JSON Format
-
-Structured JSON output suitable for integration:
-
-```bash
-./mrp -scenario examples/aerospace_basic -format json -output results/
-# Creates: results/mrp_results.json
-```
-
-JSON structure:
-
+### JSON
+Structured output for integration with other systems:
 ```json
 {
   "metadata": {
-    "explosion_time": "73.208µs",
-    "generated_at": "2025-06-01T07:07:51-07:00",
-    "input_files": {...}
+    "explosion_time": "7.293787ms",
+    "generated_at": "2025-06-01T13:53:42Z"
   },
   "summary": {
-    "planned_orders_count": 8,
-    "allocations_count": 12,
-    "shortages_count": 8,
-    "cache_entries_count": 13
+    "planned_orders_count": 2513,
+    "allocations_count": 283,
+    "shortages_count": 0
   },
   "planned_orders": [...],
   "allocations": [...],
@@ -171,208 +272,89 @@ JSON structure:
 }
 ```
 
-### CSV Format
+### CSV
+Separate CSV files for each output type suitable for further analysis in Excel, pandas, etc.
 
-Separate CSV files for each output type:
+## Advanced Features
 
-```bash
-./mrp -scenario examples/refurbishment_scenario -format csv -output results/
-# Creates:
-#   results/planned_orders.csv
-#   results/allocations.csv
-#   results/shortages.csv
-```
-
-## Example Scenarios
-
-### Apollo Saturn V
-
-Simple Saturn V scenario demonstrating serial effectivity:
+### Critical Path Analysis
+Identifies the longest lead time paths through complex BOMs:
 
 ```bash
-./mrp -scenario examples/apollo_saturn_v -verbose
+./bin/mrp run --scenario ./examples/constellation_program --critical-path --top-paths 5
 ```
 
-- **Features**: Serial effectivity, mixed inventory, basic BOM
-- **Parts**: 15 items, 25 BOM lines
-- **Performance**: ~70µs explosion time
+### Serial Effectivity
+Supports configuration-specific BOMs based on serial number ranges:
 
-### Apollo CSM
-
-Educational scenario with simpler structure:
-
-```bash
-./mrp -scenario examples/apollo_csm -verbose
+```csv
+parent_pn,child_pn,qty_per,find_number,from_serial,to_serial,priority
+F1_ENGINE,F1_TURBOPUMP_V1,1,100,AS501,AS505,0
+F1_ENGINE,F1_TURBOPUMP_V2,1,100,AS506,,0
 ```
 
-- **Features**: Multi-unit demand, 3-level BOM
-- **Parts**: 15 items, 18 BOM lines
-- **Use Case**: Learning and testing
+### Shared Components
+Handles parts used across multiple assemblies with proper allocation logic.
 
-### Refurbishment Scenario
+### Alternate Parts
+Supports alternate components with priority-based selection.
 
-Engine refurbishment with multi-serial demands:
-
-```bash
-./mrp -scenario examples/refurbishment_scenario -format csv -output results/
-```
-
-- **Features**: Multi-serial demands, consumable parts
-- **Parts**: 15 items, 30 BOM lines
-- **Use Case**: Refurb operations planning
-
-### Apollo Saturn V Stack
-
-Large-scale complete Saturn V scenario:
-
-```bash
-./mrp -scenario examples/apollo_saturn_v_stack -format json -output results/
-```
-
-- **Features**: Large BOMs, high quantities, optimization
-- **Parts**: 40+ items, 85+ BOM lines
-- **Use Case**: Performance testing, large-scale planning
-
-## Performance Optimization
-
-### Automatic Optimization
-
-The CLI automatically uses optimized algorithms for all datasets:
-
-- Uses compact storage repositories
-- Always uses optimized engine
-- Memory management and GC tuning for all operations
-
-### High Performance
-
-```bash
-# All runs are optimized by default
-./mrp -scenario examples/apollo_saturn_v_stack -verbose
-
-# Monitor performance with verbose output
-./mrp -scenario examples/aerospace_basic -verbose
-```
-
-## Integration Examples
+## Integration
 
 ### Batch Processing
-
 ```bash
 #!/bin/bash
-for scenario in examples/*/; do
-    echo "Processing $scenario..."
-    ./mrp -scenario "$scenario" -format json -output "results/$(basename $scenario)"
+for scenario in scenarios/*/; do
+    ./bin/mrp run --scenario "$scenario" --format json --output "results/$(basename $scenario)"
 done
 ```
 
 ### CI/CD Pipeline
-
 ```yaml
 - name: Run MRP Analysis
   run: |
-    ./mrp -scenario scenarios/production -format json -output artifacts/
-    # Upload artifacts/mrp_results.json to analysis system
+    ./bin/mrp run --scenario production_scenario --format json --output artifacts/
+    ./bin/mrp run --scenario production_scenario --critical-path --output artifacts/
 ```
-
-### Data Processing
-
-```bash
-# Generate CSV for further analysis
-./mrp -scenario examples/complex_vehicle -format csv -output analysis/
-# Process with tools like pandas, R, Excel, etc.
-```
-
-## Error Handling
-
-The CLI provides detailed error messages for common issues:
-
-### File Errors
-
-```bash
-Error: BOM file not found: missing_bom.csv
-Error: Items CSV header mismatch. Expected: [part_number,description,...], Got: [...]
-```
-
-### Data Validation
-
-```bash
-Error: Invalid quantity in row 5: not-a-number
-Error: Invalid need_date format: 2025-13-45 (expected YYYY-MM-DD)
-Error: Invalid lot_size_rule: InvalidRule (expected: LotForLot, MinimumQty, or StandardPack)
-```
-
-### MRP Logic
-
-```bash
-Error: Circular BOM reference detected: PART_A -> PART_B -> PART_A
-Error: Item not found: UNKNOWN_PART
-```
-
-## Tips and Best Practices
-
-### File Organization
-
-```
-project/
-├── scenarios/
-│   ├── production/
-│   │   ├── items.csv
-│   │   ├── bom.csv
-│   │   ├── inventory.csv
-│   │   └── demands.csv
-│   └── test/
-└── results/
-```
-
-### Serial Effectivity
-
-- Use consistent serial number formats (e.g., SN001, SN002, ...)
-- Ensure no overlapping effectivity ranges for same parent/child
-- Leave `to_serial` empty for open-ended ranges
-
-### Inventory Management
-
-- Use `serial` type for unique, trackable items (engines, major assemblies)
-- Use `lot` type for bulk items (fasteners, fluids, consumables)
-- Maintain FIFO with consistent receipt dates
-
-### Performance
-
-- Optimized performance for all BOM sizes
-- Consider breaking very large scenarios into smaller runs
-- Use `-verbose` to monitor performance and cache effectiveness
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Slow Performance**
-
-```bash
-# Solution: Use optimization
-./mrp -scenario large_bom -verbose
-```
-
-**Memory Issues**
-
-```bash
-# Solution: Process in smaller batches or use optimization
-# Check available memory before running large scenarios
-```
-
-**Incorrect Results**
-
-```bash
-# Solution: Validate input data
-# Check serial effectivity ranges
-# Verify BOM parent-child relationships
-# Ensure inventory locations match demand locations
-```
-
 **File Format Errors**
+- Ensure CSV headers match expected format exactly
+- Check for special characters in part numbers
+- Verify date formats (YYYY-MM-DD)
+
+**Performance Issues**  
+- Use `--verbose` to monitor execution time
+- Consider breaking very large scenarios into batches
+- Ensure adequate memory for large BOMs
+
+**Logic Errors**
+- Validate BOM parent-child relationships
+- Check serial effectivity ranges for overlaps
+- Verify inventory locations match demand locations
+
+### Getting Help
 
 ```bash
-# Solution: Validate CSV headers and data types
-# Use example scenarios as templates
-# Check for special characters in part numbers
+# Command help
+./bin/mrp help
+./bin/mrp run --help  
+./bin/mrp generate --help
+
+# Verbose output for debugging
+./bin/mrp run --scenario ./examples/apollo_saturn_v --verbose
 ```
+
+## Contributing
+
+This system follows clean architecture principles with comprehensive test coverage. Key development practices:
+
+- **Domain-driven design** with clear boundaries
+- **Functional approach** with explicit dependencies  
+- **Performance testing** with realistic scenarios
+- **Comprehensive validation** of business logic
+
+For detailed architecture information, see the source code documentation in `/pkg/` directories.

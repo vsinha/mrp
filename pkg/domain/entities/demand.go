@@ -34,10 +34,10 @@ type NetRequirement struct {
 
 // Shortage represents unfulfilled demand
 type Shortage struct {
-	PartNumber   PartNumber
-	Location     string
-	ShortQty     Quantity
-	NeedDate     time.Time
-	DemandTrace  string
-	TargetSerial string
+	PartNumber   PartNumber `json:"part_number"`
+	Location     string     `json:"location"`
+	ShortQty     Quantity   `json:"short_qty"`
+	NeedDate     time.Time  `json:"need_date"`
+	DemandTrace  string     `json:"demand_trace"`
+	TargetSerial string     `json:"target_serial"`
 }

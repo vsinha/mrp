@@ -106,17 +106,17 @@ func NewSerializedInventory(
 
 // InventoryAllocation represents a specific allocation from inventory
 type InventoryAllocation struct {
-	LotNumber    string
-	SerialNumber string
-	Quantity     Quantity
-	Location     string
+	LotNumber    string   `json:"lot_number"`
+	SerialNumber string   `json:"serial_number"`
+	Quantity     Quantity `json:"quantity"`
+	Location     string   `json:"location"`
 }
 
 // AllocationResult represents the result of inventory allocation
 type AllocationResult struct {
-	PartNumber      PartNumber
-	Location        string
-	AllocatedQty    Quantity
-	RemainingDemand Quantity
-	AllocatedFrom   []InventoryAllocation
+	PartNumber      PartNumber            `json:"part_number"`
+	Location        string                `json:"location"`
+	AllocatedQty    Quantity              `json:"allocated_qty"`
+	RemainingDemand Quantity              `json:"remaining_demand"`
+	AllocatedFrom   []InventoryAllocation `json:"allocated_from"`
 }

@@ -30,14 +30,14 @@ func (o OrderType) String() string {
 
 // PlannedOrder represents a planned manufacturing or procurement order
 type PlannedOrder struct {
-	PartNumber   PartNumber
-	Quantity     Quantity
-	StartDate    time.Time
-	DueDate      time.Time
-	DemandTrace  string
-	Location     string
-	OrderType    OrderType
-	TargetSerial string
+	PartNumber   PartNumber `json:"part_number"`
+	Quantity     Quantity   `json:"quantity"`
+	StartDate    time.Time  `json:"start_date"`
+	DueDate      time.Time  `json:"due_date"`
+	DemandTrace  string     `json:"demand_trace"`
+	Location     string     `json:"location"`
+	OrderType    OrderType  `json:"order_type"`
+	TargetSerial string     `json:"target_serial"`
 }
 
 // NewPlannedOrder creates a validated PlannedOrder

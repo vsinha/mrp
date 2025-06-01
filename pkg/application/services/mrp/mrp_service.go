@@ -337,26 +337,9 @@ func (s *MRPService) createPlannedOrders(
 			orderType = entities.Buy // Long lead time items are typically purchased
 		}
 
-		startDate := netReq.NeedDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour)
-		order, err := entities.NewPlannedOrder(
-			netReq.PartNumber,
-			orderQty,
-			startDate,
-			netReq.NeedDate,
-			netReq.DemandTrace,
-			netReq.Location,
-			orderType,
-			netReq.TargetSerial,
-		)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"failed to create planned order for %s: %w",
-				netReq.PartNumber,
-				err,
-			)
-		}
-
-		orders = append(orders, *order)
+		// Split order if it exceeds max order quantity
+		splitOrders := s.splitOrderByMaxQty(orderQty, item, netReq, orderType)
+		orders = append(orders, splitOrders...)
 	}
 
 	return orders, nil
@@ -385,6 +368,78 @@ func (s *MRPService) applyLotSizing(
 	default:
 		return netQty
 	}
+}
+
+// splitOrderByMaxQty splits orders that exceed the maximum order quantity into sequential orders
+func (s *MRPService) splitOrderByMaxQty(
+	totalQty entities.Quantity,
+	item *entities.Item,
+	netReq *entities.NetRequirement,
+	orderType entities.OrderType,
+) []entities.PlannedOrder {
+	var orders []entities.PlannedOrder
+
+	// If quantity is within max limit, create single order
+	if totalQty <= item.MaxOrderQty {
+		startDate := netReq.NeedDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour)
+		order, err := entities.NewPlannedOrder(
+			netReq.PartNumber,
+			totalQty,
+			startDate,
+			netReq.NeedDate,
+			netReq.DemandTrace,
+			netReq.Location,
+			orderType,
+			netReq.TargetSerial,
+		)
+		if err == nil {
+			orders = append(orders, *order)
+		}
+		return orders
+	}
+
+	// Split into multiple sequential orders
+	remainingQty := totalQty
+	orderNum := 1
+	finalDueDate := netReq.NeedDate
+
+	for remainingQty > 0 {
+		// Calculate quantity for this order (limited by max order qty)
+		thisOrderQty := remainingQty
+		if thisOrderQty > item.MaxOrderQty {
+			thisOrderQty = item.MaxOrderQty
+		}
+
+		// Calculate dates for this order (sequential scheduling)
+		// Each subsequent order must complete before the next one starts
+		dueDate := finalDueDate.Add(-time.Duration(orderNum-1) * time.Duration(item.LeadTimeDays) * 24 * time.Hour)
+		startDate := dueDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour)
+
+		// Create demand trace that indicates this is part of a split order
+		demandTrace := netReq.DemandTrace
+		if orderNum > 1 {
+			demandTrace = fmt.Sprintf("%s (Split %d)", netReq.DemandTrace, orderNum)
+		}
+
+		order, err := entities.NewPlannedOrder(
+			netReq.PartNumber,
+			thisOrderQty,
+			startDate,
+			dueDate,
+			demandTrace,
+			netReq.Location,
+			orderType,
+			netReq.TargetSerial,
+		)
+		if err == nil {
+			orders = append(orders, *order)
+		}
+
+		remainingQty -= thisOrderQty
+		orderNum++
+	}
+
+	return orders
 }
 
 // identifyShortages identifies unfulfilled demand

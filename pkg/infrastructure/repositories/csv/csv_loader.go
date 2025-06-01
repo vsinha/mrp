@@ -44,6 +44,7 @@ func (l *Loader) LoadItems(filename string) ([]*entities.Item, error) {
 		"lead_time_days",
 		"lot_size_rule",
 		"min_order_qty",
+		"max_order_qty",
 		"safety_stock",
 		"unit_of_measure",
 	}
@@ -366,12 +367,17 @@ func parseItem(record []string) (entities.Item, error) {
 		return entities.Item{}, fmt.Errorf("invalid min_order_qty: %s", record[4])
 	}
 
-	safetyStock, err := strconv.ParseInt(record[5], 10, 64)
+	maxOrderQty, err := strconv.ParseInt(record[5], 10, 64)
 	if err != nil {
-		return entities.Item{}, fmt.Errorf("invalid safety_stock: %s", record[5])
+		return entities.Item{}, fmt.Errorf("invalid max_order_qty: %s", record[5])
 	}
 
-	unitOfMeasure := record[6]
+	safetyStock, err := strconv.ParseInt(record[6], 10, 64)
+	if err != nil {
+		return entities.Item{}, fmt.Errorf("invalid safety_stock: %s", record[6])
+	}
+
+	unitOfMeasure := record[7]
 
 	item, err := entities.NewItem(
 		partNumber,
@@ -379,6 +385,7 @@ func parseItem(record []string) (entities.Item, error) {
 		leadTimeDays,
 		lotSizeRule,
 		entities.Quantity(minOrderQty),
+		entities.Quantity(maxOrderQty),
 		entities.Quantity(safetyStock),
 		unitOfMeasure,
 	)

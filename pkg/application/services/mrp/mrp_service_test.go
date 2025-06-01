@@ -2,11 +2,13 @@ package mrp
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	testhelpers "github.com/vsinha/mrp/pkg/application/services/testing"
 	"github.com/vsinha/mrp/pkg/domain/entities"
+	"github.com/vsinha/mrp/pkg/infrastructure/repositories/memory"
 )
 
 // Helper to create test MRP service
@@ -367,5 +369,120 @@ func TestMRPService_ExplodeDemand_MultipleTargetSerials(t *testing.T) {
 	}
 	if !foundV2 {
 		t.Error("Expected planned order for J2_ENGINE_V2")
+	}
+}
+
+func TestMRPService_ExplodeDemand_OrderSplitting(t *testing.T) {
+	ctx := context.Background()
+
+	// Create test repositories
+	bomRepo := memory.NewBOMRepository(5)
+	itemRepo := memory.NewItemRepository(5)
+	inventoryRepo := memory.NewInventoryRepository()
+	demandRepo := memory.NewDemandRepository()
+
+	// Create an item with a small max order quantity to force splitting
+	item, err := entities.NewItem(
+		"HIGH_DEMAND_PART",
+		"Part with Limited Order Size",
+		10,                              // 10 day lead time
+		entities.LotForLot,
+		entities.Quantity(1),            // min qty
+		entities.Quantity(15),           // max qty - this will force splitting
+		entities.Quantity(0),            // safety stock
+		"EA",
+	)
+	if err != nil {
+		t.Fatalf("Failed to create item: %v", err)
+	}
+	
+	err = itemRepo.SaveItem(item)
+	if err != nil {
+		t.Fatalf("Failed to save item: %v", err)
+	}
+
+	service := newTestMRPService()
+
+	// Create demand for 50 units (will be split into 4 orders: 15+15+15+5)
+	needDate := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
+	demands := []*entities.DemandRequirement{
+		{
+			PartNumber:   "HIGH_DEMAND_PART",
+			Quantity:     entities.Quantity(50),
+			NeedDate:     needDate,
+			DemandSource: "LARGE_ORDER",
+			Location:     "FACTORY",
+			TargetSerial: "SN001",
+		},
+	}
+
+	result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
+	if err != nil {
+		t.Fatalf("ExplodeDemand failed: %v", err)
+	}
+
+	// Should have exactly 4 planned orders (15+15+15+5 = 50)
+	expectedOrders := 4
+	actualOrders := len(result.PlannedOrders)
+	
+	if actualOrders != expectedOrders {
+		t.Errorf("Expected %d planned orders, got %d", expectedOrders, actualOrders)
+	}
+
+	// Verify quantities and sequential scheduling
+	var totalQuantity entities.Quantity = 0
+	var previousDueDate time.Time
+	splitOrderCount := 0
+
+	for i, order := range result.PlannedOrders {
+		if order.PartNumber != "HIGH_DEMAND_PART" {
+			continue
+		}
+
+		totalQuantity += order.Quantity
+
+		// Check quantity constraints
+		if order.Quantity > 15 {
+			t.Errorf("Order %d quantity %d exceeds max order qty of 15", i, order.Quantity)
+		}
+
+		// Check sequential scheduling (each order due before the previous one)
+		if i > 0 && !order.DueDate.Before(previousDueDate) {
+			t.Errorf("Order %d due date %v should be before previous due date %v for sequential ordering", 
+				i, order.DueDate, previousDueDate)
+		}
+		previousDueDate = order.DueDate
+
+		// Check demand trace for split orders
+		if i > 0 {
+			expectedTrace := fmt.Sprintf("LARGE_ORDER (Split %d)", i+1)
+			if order.DemandTrace != expectedTrace {
+				t.Errorf("Expected demand trace '%s', got '%s'", expectedTrace, order.DemandTrace)
+			}
+			splitOrderCount++
+		} else {
+			// First order should have original demand trace
+			if order.DemandTrace != "LARGE_ORDER" {
+				t.Errorf("Expected first order demand trace 'LARGE_ORDER', got '%s'", order.DemandTrace)
+			}
+		}
+
+		// Verify lead time is respected (start + lead time = due date)
+		expectedDueDate := order.StartDate.Add(10 * 24 * time.Hour) // 10 day lead time
+		if !order.DueDate.Equal(expectedDueDate) {
+			t.Errorf("Order %d due date %v doesn't match start date + lead time %v", 
+				i, order.DueDate, expectedDueDate)
+		}
+	}
+
+	// Verify total quantity matches demand
+	if totalQuantity != 50 {
+		t.Errorf("Total planned quantity %d doesn't match demand quantity 50", totalQuantity)
+	}
+
+	// Verify correct number of split orders (should be 3: splits 2, 3, and 4)
+	expectedSplitOrders := 3
+	if splitOrderCount != expectedSplitOrders {
+		t.Errorf("Expected %d split orders, got %d", expectedSplitOrders, splitOrderCount)
 	}
 }

@@ -38,6 +38,7 @@ type Item struct {
 	LeadTimeDays  int
 	LotSizeRule   LotSizeRule
 	MinOrderQty   Quantity
+	MaxOrderQty   Quantity
 	SafetyStock   Quantity
 	UnitOfMeasure string
 }
@@ -48,7 +49,7 @@ func NewItem(
 	description string,
 	leadTimeDays int,
 	lotSizeRule LotSizeRule,
-	minOrderQty, safetyStock Quantity,
+	minOrderQty, maxOrderQty, safetyStock Quantity,
 	unitOfMeasure string,
 ) (*Item, error) {
 	// Validate inputs
@@ -63,6 +64,12 @@ func NewItem(
 	}
 	if minOrderQty < 0 {
 		return nil, fmt.Errorf("minimum order quantity cannot be negative, got %d", minOrderQty)
+	}
+	if maxOrderQty <= 0 {
+		return nil, fmt.Errorf("maximum order quantity must be positive, got %d", maxOrderQty)
+	}
+	if maxOrderQty < minOrderQty {
+		return nil, fmt.Errorf("maximum order quantity (%d) cannot be less than minimum order quantity (%d)", maxOrderQty, minOrderQty)
 	}
 	if safetyStock < 0 {
 		return nil, fmt.Errorf("safety stock cannot be negative, got %d", safetyStock)
@@ -85,6 +92,7 @@ func NewItem(
 		LeadTimeDays:  leadTimeDays,
 		LotSizeRule:   lotSizeRule,
 		MinOrderQty:   minOrderQty,
+		MaxOrderQty:   maxOrderQty,
 		SafetyStock:   safetyStock,
 		UnitOfMeasure: unitOfMeasure,
 	}, nil
