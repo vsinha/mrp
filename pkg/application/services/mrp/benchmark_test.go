@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	testhelpers "github.com/vsinha/mrp/pkg/application/services/testing"
 	"github.com/vsinha/mrp/pkg/domain/entities"
 	"github.com/vsinha/mrp/pkg/infrastructure/repositories/memory"
-	testhelpers "github.com/vsinha/mrp/pkg/infrastructure/testing"
 )
 
 // Helper to create test MRP service for benchmarks

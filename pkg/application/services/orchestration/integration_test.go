@@ -8,9 +8,9 @@ import (
 	"github.com/vsinha/mrp/pkg/application/services/criticalpath"
 	"github.com/vsinha/mrp/pkg/application/services/mrp"
 	"github.com/vsinha/mrp/pkg/application/services/shared"
+	testinghelpers "github.com/vsinha/mrp/pkg/application/services/testing"
 	"github.com/vsinha/mrp/pkg/domain/entities"
 	"github.com/vsinha/mrp/pkg/infrastructure/repositories/memory"
-	testinghelpers "github.com/vsinha/mrp/pkg/infrastructure/testing"
 )
 
 func TestPlanningOrchestrator_AnalyzeCriticalPathWithMRPResults(t *testing.T) {

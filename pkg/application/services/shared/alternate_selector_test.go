@@ -3,8 +3,8 @@ package shared
 import (
 	"testing"
 
+	testinghelpers "github.com/vsinha/mrp/pkg/application/services/testing"
 	"github.com/vsinha/mrp/pkg/domain/entities"
-	testinghelpers "github.com/vsinha/mrp/pkg/infrastructure/testing"
 )
 
 func TestSelectBestAlternateByPriority(t *testing.T) {
