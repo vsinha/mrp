@@ -1,4 +1,3 @@
-./bin/mrp
+bin/
 test_output/
-CLAUDE.md
 .claude/
