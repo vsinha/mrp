@@ -14,6 +14,7 @@ func mustCreateItem(
 	lotRule entities.LotSizeRule,
 	minOrderQty, maxOrderQty, safetyStock entities.Quantity,
 	uom string,
+	makeBuyCode entities.MakeBuyCode,
 ) *entities.Item {
 	item, err := entities.NewItem(
 		entities.PartNumber(partNumber),
@@ -24,6 +25,7 @@ func mustCreateItem(
 		maxOrderQty,
 		safetyStock,
 		uom,
+		makeBuyCode,
 	)
 	if err != nil {
 		panic(err)
@@ -121,6 +123,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			entities.Quantity(10), // Max 10 rockets at once
 			entities.Quantity(0),
 			"EA",
+			entities.MakeBuyMake,
 		),
 		mustCreateItem(
 			"F1_ENGINE",
@@ -131,6 +134,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			entities.Quantity(50), // Max 50 engines at once
 			entities.Quantity(2),
 			"EA",
+			entities.MakeBuyMake,
 		),
 		mustCreateItem(
 			"J2_ENGINE_V1",
@@ -141,6 +145,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			entities.Quantity(30), // Max 30 engines at once
 			entities.Quantity(0),
 			"EA",
+			entities.MakeBuyMake,
 		),
 		mustCreateItem(
 			"J2_ENGINE_V2",
@@ -151,6 +156,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			entities.Quantity(30), // Max 30 engines at once
 			entities.Quantity(0),
 			"EA",
+			entities.MakeBuyMake,
 		),
 		mustCreateItem(
 			"F1_TURBOPUMP_V1",
@@ -161,6 +167,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			entities.Quantity(100), // Max 100 turbopumps at once
 			entities.Quantity(0),
 			"EA",
+			entities.MakeBuyMake,
 		),
 		mustCreateItem(
 			"F1_TURBOPUMP_V2",
@@ -171,6 +178,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 			entities.Quantity(100), // Max 100 turbopumps at once
 			entities.Quantity(0),
 			"EA",
+			entities.MakeBuyMake,
 		),
 	}
 

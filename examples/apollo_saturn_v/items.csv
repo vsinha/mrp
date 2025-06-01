@@ -1,16 +1,16 @@
-part_number,description,lead_time_days,lot_size_rule,min_order_qty,safety_stock,unit_of_measure
-SATURN_V,Saturn V Launch Vehicle,365,LotForLot,1,0,EA
-F1_ENGINE,F-1 Engine,180,LotForLot,1,1,EA
-J2_ENGINE,J-2 Engine,150,LotForLot,1,1,EA
-S_IC_STAGE,S-IC First Stage,240,LotForLot,1,0,EA
-S_II_STAGE,S-II Second Stage,210,LotForLot,1,0,EA
-S_IVB_STAGE,S-IVB Third Stage,180,LotForLot,1,0,EA
-F1_TURBOPUMP,F-1 Turbopump Assembly,90,LotForLot,1,1,EA
-J2_TURBOPUMP,J-2 Turbopump Assembly,75,LotForLot,1,1,EA
-COMBUSTION_CHAMBER,Engine Combustion Chamber,120,LotForLot,1,0,EA
-NOZZLE_ASSEMBLY,Engine Nozzle Assembly,90,LotForLot,1,0,EA
-VALVE_MAIN,Main Engine Valve,60,MinimumQty,10,5,EA
-INJECTOR_HEAD,Propellant Injector Head,75,LotForLot,1,1,EA
-THRUST_STRUCTURE,Thrust Structure Assembly,150,LotForLot,1,0,EA
-TANK_STRUCTURE,Propellant Tank Structure,120,LotForLot,1,0,EA
-AVIONICS_PACKAGE,Saturn V Avionics Package,90,LotForLot,1,1,EA
+part_number,description,lead_time_days,lot_size_rule,min_order_qty,max_order_qty,safety_stock,unit_of_measure,make_buy_code
+SATURN_V,Saturn V Launch Vehicle,365,LotForLot,1,3,0,EA,Buy
+F1_ENGINE,F-1 Engine,180,LotForLot,1,15,1,EA,Buy
+J2_ENGINE,J-2 Engine,150,LotForLot,1,12,1,EA,Buy
+S_IC_STAGE,S-IC First Stage,240,LotForLot,1,5,0,EA,Buy
+S_II_STAGE,S-II Second Stage,210,LotForLot,1,6,0,EA,Buy
+S_IVB_STAGE,S-IVB Third Stage,180,LotForLot,1,8,0,EA,Buy
+F1_TURBOPUMP,F-1 Turbopump Assembly,90,LotForLot,1,30,1,EA,Buy
+J2_TURBOPUMP,J-2 Turbopump Assembly,75,LotForLot,1,25,1,EA,Buy
+COMBUSTION_CHAMBER,Engine Combustion Chamber,120,LotForLot,1,35,0,EA,Buy
+NOZZLE_ASSEMBLY,Engine Nozzle Assembly,90,LotForLot,1,40,0,EA,Buy
+VALVE_MAIN,Main Engine Valve,60,MinimumQty,10,150,5,EA,Buy
+INJECTOR_HEAD,Propellant Injector Head,75,LotForLot,1,50,1,EA,Buy
+THRUST_STRUCTURE,Thrust Structure Assembly,150,LotForLot,1,20,0,EA,Buy
+TANK_STRUCTURE,Propellant Tank Structure,120,LotForLot,1,25,0,EA,Buy
+AVIONICS_PACKAGE,Saturn V Avionics Package,90,LotForLot,1,15,1,EA,Buy

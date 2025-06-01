@@ -74,54 +74,97 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	}
 
 	csvLoader := csv.NewLoader()
+	
+	// Track individual loading times
+	var loadStart time.Time
 
-	// Load data
+	// Load Items
+	if c.config.Verbose {
+		loadStart = time.Now()
+		fmt.Printf("  🔄 Loading items from %s...", files["Items"])
+	}
 	items, err := csvLoader.LoadItems(files["Items"])
 	if err != nil {
 		return fmt.Errorf("error loading items: %w", err)
 	}
+	if c.config.Verbose {
+		fmt.Printf(" ✅ %d items loaded in %v\n", len(items), time.Since(loadStart))
+	}
 
+	// Load BOM
+	if c.config.Verbose {
+		loadStart = time.Now()
+		fmt.Printf("  🔄 Loading BOM from %s...", files["BOM"])
+	}
 	bomLines, err := csvLoader.LoadBOM(files["BOM"])
 	if err != nil {
 		return fmt.Errorf("error loading BOM: %w", err)
 	}
+	if c.config.Verbose {
+		fmt.Printf(" ✅ %d BOM lines loaded in %v\n", len(bomLines), time.Since(loadStart))
+	}
 
+	// Load Inventory  
+	if c.config.Verbose {
+		loadStart = time.Now()
+		fmt.Printf("  🔄 Loading inventory from %s...", files["Inventory"])
+	}
 	lotInventory, serialInventory, err := csvLoader.LoadInventory(files["Inventory"])
 	if err != nil {
 		return fmt.Errorf("error loading inventory: %w", err)
 	}
+	if c.config.Verbose {
+		fmt.Printf(" ✅ %d lot + %d serial inventory records loaded in %v\n", 
+			len(lotInventory), len(serialInventory), time.Since(loadStart))
+	}
 
+	// Load Demands
+	if c.config.Verbose {
+		loadStart = time.Now()
+		fmt.Printf("  🔄 Loading demands from %s...", files["Demands"])
+	}
 	demands, err := csvLoader.LoadDemands(files["Demands"])
 	if err != nil {
 		return fmt.Errorf("error loading demands: %w", err)
 	}
-
 	if c.config.Verbose {
-		fmt.Printf("✅ Data loaded successfully:\n")
-		fmt.Printf("  Items: %d\n", len(items))
-		fmt.Printf("  BOM Lines: %d\n", len(bomLines))
-		fmt.Printf("  Lot Inventory: %d\n", len(lotInventory))
-		fmt.Printf("  Serial Inventory: %d\n", len(serialInventory))
-		fmt.Printf("  Demands: %d\n", len(demands))
+		fmt.Printf(" ✅ %d demands loaded in %v\n", len(demands), time.Since(loadStart))
 		fmt.Println()
 	}
 
 	// Create repositories
+	if c.config.Verbose {
+		fmt.Println("🏗️  Creating in-memory repositories...")
+		loadStart = time.Now()
+		fmt.Print("  🔄 Setting up BOM repository...")
+	}
 	bomRepo := memory.NewBOMRepository(len(bomLines))
 	err = bomRepo.LoadBOMLines(bomLines)
 	if err != nil {
 		return fmt.Errorf("failed to load BOM lines into repository: %w", err)
 	}
+	if c.config.Verbose {
+		fmt.Printf(" ✅ Done in %v\n", time.Since(loadStart))
+	}
 
+	if c.config.Verbose {
+		loadStart = time.Now()
+		fmt.Print("  🔄 Setting up Item repository...")
+	}
 	itemRepo := memory.NewItemRepository(len(items))
 	err = itemRepo.LoadItems(items)
 	if err != nil {
 		return fmt.Errorf("failed to load items into repository: %w", err)
 	}
+	if c.config.Verbose {
+		fmt.Printf(" ✅ Done in %v\n", time.Since(loadStart))
+	}
 
 	// Validate BOM-Item consistency
 	if c.config.Verbose {
-		fmt.Println("🔍 Validating BOM-Item consistency...")
+		fmt.Println()
+		loadStart = time.Now()
+		fmt.Print("🔍 Validating BOM-Item consistency...")
 	}
 
 	itemSlice := make([]entities.Item, len(items))
@@ -140,10 +183,18 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 			strings.Join(consistencyValidation.Errors, "; "))
 	}
 
-	if c.config.Verbose && len(consistencyValidation.OrphanedParts) == 0 {
-		fmt.Println("✅ BOM-Item consistency validation passed")
+	if c.config.Verbose {
+		fmt.Printf(" ✅ Done in %v", time.Since(loadStart))
+		if len(consistencyValidation.OrphanedParts) > 0 {
+			fmt.Printf(" (Found %d orphaned parts)", len(consistencyValidation.OrphanedParts))
+		}
+		fmt.Println()
 	}
 
+	if c.config.Verbose {
+		loadStart = time.Now()
+		fmt.Print("  🔄 Setting up Inventory repository...")
+	}
 	inventoryRepo := memory.NewInventoryRepository()
 	err = inventoryRepo.LoadInventoryLots(lotInventory)
 	if err != nil {
@@ -153,16 +204,48 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to load serialized inventory into repository: %w", err)
 	}
+	if c.config.Verbose {
+		fmt.Printf(" ✅ Done in %v\n", time.Since(loadStart))
+	}
 
+	if c.config.Verbose {
+		loadStart = time.Now()
+		fmt.Print("  🔄 Setting up Demand repository...")
+	}
 	demandRepo := memory.NewDemandRepository()
 	err = demandRepo.LoadDemands(demands)
 	if err != nil {
 		return fmt.Errorf("failed to load demands into repository: %w", err)
 	}
+	if c.config.Verbose {
+		fmt.Printf(" ✅ Done in %v\n", time.Since(loadStart))
+	}
 
 	// Create services
+	if c.config.Verbose {
+		fmt.Println()
+		fmt.Println("🛠️  Initializing MRP services...")
+		loadStart = time.Now()
+		fmt.Print("  🔄 Creating MRP service...")
+	}
 	mrpService := mrp.NewMRPService()
+	if c.config.Verbose {
+		fmt.Printf(" ✅ Done in %v\n", time.Since(loadStart))
+	}
+
+	if c.config.Verbose {
+		loadStart = time.Now()
+		fmt.Print("  🔄 Creating Critical Path service...")
+	}
 	criticalPathService := criticalpath.NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
+	if c.config.Verbose {
+		fmt.Printf(" ✅ Done in %v\n", time.Since(loadStart))
+	}
+
+	if c.config.Verbose {
+		loadStart = time.Now()
+		fmt.Print("  🔄 Creating Planning orchestrator...")
+	}
 	orchestrator := orchestration.NewPlanningOrchestrator(
 		mrpService,
 		criticalPathService,
@@ -171,17 +254,25 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 		inventoryRepo,
 		demandRepo,
 	)
-
 	if c.config.Verbose {
-		fmt.Println("⚡ Using optimized MRP service with clean architecture")
+		fmt.Printf(" ✅ Done in %v\n", time.Since(loadStart))
+		fmt.Println("⚡ MRP services initialized with clean architecture")
+		fmt.Println()
 	}
 
 	// Run MRP explosion
 	if c.config.Verbose {
-		fmt.Println("🔄 Running MRP explosion...")
+		fmt.Println("🚀 Starting MRP explosion process...")
+		fmt.Printf("  📊 Processing %d demand(s) across %d unique part(s)\n", len(demands), len(items))
+		fmt.Printf("  🔗 Using %d BOM relationships\n", len(bomLines))
+		fmt.Printf("  📦 Available inventory: %d lot + %d serial records\n", len(lotInventory), len(serialInventory))
+		fmt.Println()
 	}
 
 	startTime := time.Now()
+	if c.config.Verbose {
+		fmt.Print("  🔄 Exploding demand structure...")
+	}
 	result, err := mrpService.ExplodeDemand(
 		ctx,
 		demands,
@@ -197,19 +288,34 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	}
 
 	if c.config.Verbose {
-		fmt.Printf("✅ MRP explosion completed in %v\n\n", explosionTime)
+		fmt.Printf(" ✅ Done in %v\n", explosionTime)
+		fmt.Printf("📋 Generated %d planned orders\n", len(result.PlannedOrders))
+		fmt.Printf("📦 Created %d inventory allocations\n", len(result.Allocations))
+		if len(result.ShortageReport) > 0 {
+			fmt.Printf("⚠️  Found %d shortages\n", len(result.ShortageReport))
+		} else {
+			fmt.Printf("✅ No shortages detected\n")
+		}
+		fmt.Println()
 	}
 
 	// Perform critical path analysis if requested
 	var criticalPathResults []*entities.CriticalPathAnalysis
 	if c.config.CriticalPath {
 		if c.config.Verbose {
-			fmt.Println("🔍 Performing critical path analysis...")
+			fmt.Printf("🔍 Performing critical path analysis for %d demand(s)...\n", len(demands))
+			fmt.Printf("  📈 Analyzing top %d critical paths per demand\n", c.config.TopPaths)
 		}
 
 		criticalPathStartTime := time.Now()
 
-		for _, demand := range demands {
+		for i, demand := range demands {
+			if c.config.Verbose {
+				fmt.Printf("  🔄 Analyzing critical path for %s (%d/%d)...", 
+					demand.PartNumber, i+1, len(demands))
+				loadStart = time.Now()
+			}
+
 			analysis, err := orchestrator.AnalyzeCriticalPathWithMRPResults(
 				ctx,
 				demand.PartNumber,
@@ -219,27 +325,43 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 				result,
 			)
 			if err != nil {
-				fmt.Printf(
-					"Warning: Failed to analyze critical path for %s: %v\n",
-					demand.PartNumber,
-					err,
-				)
+				if c.config.Verbose {
+					fmt.Printf(" ❌ Failed in %v\n", time.Since(loadStart))
+				}
+				fmt.Printf("Warning: Failed to analyze critical path for %s: %v\n",
+					demand.PartNumber, err)
 				continue
 			}
 			criticalPathResults = append(criticalPathResults, analysis)
 
 			if c.config.Verbose {
-				fmt.Printf("📊 %s: %s\n", demand.PartNumber, analysis.GetCriticalPathSummary())
+				fmt.Printf(" ✅ Done in %v\n", time.Since(loadStart))
+				fmt.Printf("    📊 %s\n", analysis.GetCriticalPathSummary())
 			}
 		}
 
 		criticalPathTime := time.Since(criticalPathStartTime)
 		if c.config.Verbose {
-			fmt.Printf("✅ Critical path analysis completed in %v\n\n", criticalPathTime)
+			fmt.Printf("✅ Critical path analysis completed in %v\n", criticalPathTime)
+			fmt.Printf("📈 Generated %d critical path analyses\n\n", len(criticalPathResults))
 		}
 	}
 
 	// Generate output
+	if c.config.Verbose {
+		fmt.Printf("📄 Generating output in %s format...\n", c.config.Format)
+		if c.config.SVGOutput != "" {
+			if c.config.Format == "html" {
+				fmt.Printf("  🌐 Preparing interactive HTML visualization...\n")
+			}
+			fmt.Printf("  📊 Will also generate visualization at: %s\n", c.config.SVGOutput)
+		}
+		if c.config.OutputDir != "" {
+			fmt.Printf("  📁 Output directory: %s\n", c.config.OutputDir)
+		}
+		loadStart = time.Now()
+	}
+
 	outputConfig := output.Config{
 		Format:        c.config.Format,
 		OutputDir:     c.config.OutputDir,
@@ -252,6 +374,10 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	err = output.Generate(result, outputConfig)
 	if err != nil {
 		return fmt.Errorf("error generating output: %w", err)
+	}
+
+	if c.config.Verbose {
+		fmt.Printf("✅ Output generation completed in %v\n", time.Since(loadStart))
 	}
 
 	if c.config.Verbose {
@@ -336,7 +462,7 @@ OPTIONS:
     -inventory <file>   Path to inventory CSV file
     -demands <file>     Path to demands CSV file
     -output <dir>       Output directory for results (optional)
-    -format <fmt>       Output format: text, json, csv (default: text)
+    -format <fmt>       Output format: text, json, csv, html (default: text)
     -svg <file>         Generate SVG Gantt chart to specified file
     -verbose            Enable verbose output
     -critical-path      Perform critical path analysis on demands
@@ -353,8 +479,8 @@ SCENARIO DIRECTORY STRUCTURE:
 CSV FILE FORMATS:
 
 items.csv:
-    part_number,description,lead_time_days,lot_size_rule,min_order_qty,safety_stock,unit_of_measure
-    F1_ENGINE,F-1 Engine,120,LotForLot,1,2,EA
+    part_number,description,lead_time_days,lot_size_rule,min_order_qty,max_order_qty,safety_stock,unit_of_measure,make_buy_code
+    F1_ENGINE,F-1 Engine,120,LotForLot,1,10,2,EA,Make
 
 bom.csv:
     parent_pn,child_pn,qty_per,find_number,from_serial,to_serial
@@ -388,6 +514,9 @@ EXAMPLES:
 
     # Generate SVG Gantt chart visualization
     mrp -scenario examples/apollo_csm -svg production_schedule.svg -verbose
+
+    # Generate interactive HTML visualization
+    mrp -scenario examples/apollo_csm -format html -svg interactive_chart -verbose
 
     # Run with verbose output
     mrp -scenario examples/apollo_saturn_v_stack -verbose

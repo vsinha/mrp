@@ -1,43 +1,43 @@
-part_number,description,lead_time_days,lot_size_rule,min_order_qty,safety_stock,unit_of_measure
-SATURN_V_VEHICLE,Complete Saturn V Vehicle,365,LotForLot,1,0,EA
-S_IC_STAGE,S-IC First Stage,240,LotForLot,1,0,EA
-S_II_STAGE,S-II Second Stage,210,LotForLot,1,0,EA
-S_IVB_STAGE,S-IVB Third Stage,180,LotForLot,1,0,EA
-APOLLO_CSM,Apollo Command/Service Module,270,LotForLot,1,0,EA
-LUNAR_MODULE,Apollo Lunar Module,300,LotForLot,1,0,EA
-F1_ENGINE,F-1 Engine,180,LotForLot,1,1,EA
-J2_ENGINE,J-2 Engine,150,LotForLot,1,1,EA
-COMMAND_MODULE,Apollo Command Module,180,LotForLot,1,0,EA
-SERVICE_MODULE,Apollo Service Module,165,LotForLot,1,0,EA
-SPS_ENGINE,Service Propulsion System Engine,120,LotForLot,1,0,EA
-LM_ASCENT_STAGE,LM Ascent Stage,150,LotForLot,1,0,EA
-LM_DESCENT_STAGE,LM Descent Stage,180,LotForLot,1,0,EA
-DESCENT_ENGINE,LM Descent Engine,90,LotForLot,1,0,EA
-ASCENT_ENGINE,LM Ascent Engine,75,LotForLot,1,0,EA
-S_IC_STRUCTURE,S-IC Stage Structure,150,LotForLot,1,0,EA
-S_II_STRUCTURE,S-II Stage Structure,120,LotForLot,1,0,EA
-S_IVB_STRUCTURE,S-IVB Stage Structure,90,LotForLot,1,0,EA
-PROPELLANT_TANK,Propellant Tank,90,LotForLot,1,0,EA
-AVIONICS_PACKAGE,Guidance & Control Package,120,LotForLot,1,0,EA
-HEAT_SHIELD,Command Module Heat Shield,90,LotForLot,1,0,EA
-PARACHUTE_SYSTEM,Recovery Parachute System,60,LotForLot,1,0,EA
-LIFE_SUPPORT,Environmental Control System,75,LotForLot,1,0,EA
-REACTION_CONTROL,RCS Thruster Block,45,LotForLot,1,2,EA
-F1_TURBOPUMP,F-1 Turbopump Assembly,90,LotForLot,1,1,EA
-J2_TURBOPUMP,J-2 Turbopump Assembly,75,LotForLot,1,1,EA
-SPS_TURBOPUMP,SPS Turbopump Assembly,60,LotForLot,1,1,EA
-COMBUSTION_CHAMBER,Engine Combustion Chamber,75,LotForLot,1,0,EA
-NOZZLE_ASSEMBLY,Engine Nozzle Assembly,60,LotForLot,1,0,EA
-VALVE_MAIN,Main Engine Valve,45,MinimumQty,10,5,EA
-INJECTOR_HEAD,Propellant Injector Head,50,LotForLot,1,1,EA
-INTERSTAGE,Interstage Adapter,60,LotForLot,1,0,EA
-FAIRINGS,Payload Fairings,45,LotForLot,1,0,EA
-UMBILICAL_TOWER,Launch Umbilical Tower,30,LotForLot,1,0,EA
-SEAL_KIT,Engine Seal Kit,21,StandardPack,50,10,EA
-GASKET_SET,Gasket Set,14,StandardPack,100,20,EA
-BOLT_M12,M12 Hex Bolt,7,StandardPack,1000,100,EA
-BOLT_M16,M16 Hex Bolt,7,StandardPack,500,50,EA
-O_RING_LARGE,Large O-Ring,10,StandardPack,200,25,EA
-O_RING_SMALL,Small O-Ring,10,StandardPack,500,50,EA
-WIRING_HARNESS,Electrical Wiring Harness,30,StandardPack,10,2,EA
-CABLE_ASSEMBLY,Cable Assembly,21,StandardPack,25,5,EA
+part_number,description,lead_time_days,lot_size_rule,min_order_qty,max_order_qty,safety_stock,unit_of_measure,make_buy_code
+SATURN_V_VEHICLE,Complete Saturn V Vehicle,365,LotForLot,1,2,0,EA,Buy
+S_IC_STAGE,S-IC First Stage,240,LotForLot,1,4,0,EA,Buy
+S_II_STAGE,S-II Second Stage,210,LotForLot,1,5,0,EA,Buy
+S_IVB_STAGE,S-IVB Third Stage,180,LotForLot,1,6,0,EA,Buy
+APOLLO_CSM,Apollo Command/Service Module,270,LotForLot,1,5,0,EA,Buy
+LUNAR_MODULE,Apollo Lunar Module,300,LotForLot,1,4,0,EA,Buy
+F1_ENGINE,F-1 Engine,180,LotForLot,1,15,1,EA,Buy
+J2_ENGINE,J-2 Engine,150,LotForLot,1,12,1,EA,Buy
+COMMAND_MODULE,Apollo Command Module,180,LotForLot,1,8,0,EA,Buy
+SERVICE_MODULE,Apollo Service Module,165,LotForLot,1,10,0,EA,Buy
+SPS_ENGINE,Service Propulsion System Engine,120,LotForLot,1,12,0,EA,Buy
+LM_ASCENT_STAGE,LM Ascent Stage,150,LotForLot,1,8,0,EA,Buy
+LM_DESCENT_STAGE,LM Descent Stage,180,LotForLot,1,8,0,EA,Buy
+DESCENT_ENGINE,LM Descent Engine,90,LotForLot,1,15,0,EA,Buy
+ASCENT_ENGINE,LM Ascent Engine,75,LotForLot,1,15,0,EA,Buy
+S_IC_STRUCTURE,S-IC Stage Structure,150,LotForLot,1,15,0,EA,Buy
+S_II_STRUCTURE,S-II Stage Structure,120,LotForLot,1,20,0,EA,Buy
+S_IVB_STRUCTURE,S-IVB Stage Structure,90,LotForLot,1,25,0,EA,Buy
+PROPELLANT_TANK,Propellant Tank,90,LotForLot,1,30,0,EA,Buy
+AVIONICS_PACKAGE,Guidance & Control Package,120,LotForLot,1,20,0,EA,Buy
+HEAT_SHIELD,Command Module Heat Shield,90,LotForLot,1,25,0,EA,Buy
+PARACHUTE_SYSTEM,Recovery Parachute System,60,LotForLot,1,30,0,EA,Buy
+LIFE_SUPPORT,Environmental Control System,75,LotForLot,1,25,0,EA,Buy
+REACTION_CONTROL,RCS Thruster Block,45,LotForLot,1,50,2,EA,Buy
+F1_TURBOPUMP,F-1 Turbopump Assembly,90,LotForLot,1,40,1,EA,Buy
+J2_TURBOPUMP,J-2 Turbopump Assembly,75,LotForLot,1,35,1,EA,Buy
+SPS_TURBOPUMP,SPS Turbopump Assembly,60,LotForLot,1,30,1,EA,Buy
+COMBUSTION_CHAMBER,Engine Combustion Chamber,75,LotForLot,1,50,0,EA,Buy
+NOZZLE_ASSEMBLY,Engine Nozzle Assembly,60,LotForLot,1,60,0,EA,Buy
+VALVE_MAIN,Main Engine Valve,45,MinimumQty,10,200,5,EA,Buy
+INJECTOR_HEAD,Propellant Injector Head,50,LotForLot,1,75,1,EA,Buy
+INTERSTAGE,Interstage Adapter,60,LotForLot,1,25,0,EA,Buy
+FAIRINGS,Payload Fairings,45,LotForLot,1,20,0,EA,Buy
+UMBILICAL_TOWER,Launch Umbilical Tower,30,LotForLot,1,5,0,EA,Buy
+SEAL_KIT,Engine Seal Kit,21,StandardPack,50,1000,10,EA,Buy
+GASKET_SET,Gasket Set,14,StandardPack,100,2000,20,EA,Buy
+BOLT_M12,M12 Hex Bolt,7,StandardPack,1000,20000,100,EA,Buy
+BOLT_M16,M16 Hex Bolt,7,StandardPack,500,10000,50,EA,Buy
+O_RING_LARGE,Large O-Ring,10,StandardPack,200,5000,25,EA,Buy
+O_RING_SMALL,Small O-Ring,10,StandardPack,500,10000,50,EA,Buy
+WIRING_HARNESS,Electrical Wiring Harness,30,StandardPack,10,500,2,EA,Buy
+CABLE_ASSEMBLY,Cable Assembly,21,StandardPack,25,1000,5,EA,Buy

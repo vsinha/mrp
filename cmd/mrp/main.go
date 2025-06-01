@@ -47,7 +47,7 @@ func runMRPCommand(ctx context.Context, args []string) {
 		inventoryFile = flagSet.String("inventory", "", "Path to inventory CSV file")
 		demandsFile   = flagSet.String("demands", "", "Path to demands CSV file")
 		outputDir     = flagSet.String("output", "", "Output directory for results (optional)")
-		format        = flagSet.String("format", "text", "Output format: text, json, csv")
+		format        = flagSet.String("format", "text", "Output format: text, json, csv, html")
 		svgOutput     = flagSet.String("svg", "", "Generate SVG Gantt chart to specified file")
 		verbose       = flagSet.Bool("verbose", false, "Enable verbose output")
 		criticalPath  = flagSet.Bool("critical-path", false, "Perform critical path analysis")

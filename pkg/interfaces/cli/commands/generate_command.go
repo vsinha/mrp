@@ -275,7 +275,7 @@ func (cmd *GenerateCommand) generateItems(nodes map[string]*BOMNode) error {
 	defer file.Close()
 
 	// Write header
-	fmt.Fprintln(file, "part_number,description,lead_time_days,lot_size_rule,min_order_qty,max_order_qty,safety_stock,unit_of_measure")
+	fmt.Fprintln(file, "part_number,description,lead_time_days,lot_size_rule,min_order_qty,max_order_qty,safety_stock,unit_of_measure,make_buy_code")
 
 	// Generate items
 	for _, node := range nodes {
@@ -283,9 +283,10 @@ func (cmd *GenerateCommand) generateItems(nodes map[string]*BOMNode) error {
 		leadTime := cmd.generateLeadTime(node)
 		lotRule, minQty, safetyStock := cmd.generateLotSizing(node)
 		maxQty := cmd.generateMaxOrderQty(node, minQty)
+		makeBuyCode := cmd.generateMakeBuyCode(node)
 
-		fmt.Fprintf(file, "%s,%s,%d,%s,%d,%d,%d,EA\n",
-			node.PartNumber, desc, leadTime, lotRule, minQty, maxQty, safetyStock)
+		fmt.Fprintf(file, "%s,%s,%d,%s,%d,%d,%d,EA,%s\n",
+			node.PartNumber, desc, leadTime, lotRule, minQty, maxQty, safetyStock, makeBuyCode)
 	}
 
 	return nil
@@ -371,6 +372,34 @@ func (cmd *GenerateCommand) generateMaxOrderQty(node *BOMNode, minQty int) int {
 	}
 
 	return baseMax
+}
+
+// generateMakeBuyCode determines if an item should be made or bought
+func (cmd *GenerateCommand) generateMakeBuyCode(node *BOMNode) string {
+	// Business logic for make vs buy decisions
+	switch {
+	case node.IsRoot:
+		// Root assemblies are typically made (final assembly)
+		return "Make"
+	case node.Level <= 2:
+		// Subassemblies: 70% make, 30% buy
+		if cmd.rand.Float32() < 0.7 {
+			return "Make"
+		}
+		return "Buy"
+	case node.Level <= 4:
+		// Components: 50% make, 50% buy
+		if cmd.rand.Float32() < 0.5 {
+			return "Make"
+		}
+		return "Buy"
+	default:
+		// Raw materials and basic parts: mostly buy (80% buy)
+		if cmd.rand.Float32() < 0.8 {
+			return "Buy"
+		}
+		return "Make"
+	}
 }
 
 // generateBOM creates the bom.csv file

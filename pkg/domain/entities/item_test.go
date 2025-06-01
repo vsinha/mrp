@@ -3,7 +3,7 @@ package entities
 import "testing"
 
 func TestItem_Validation(t *testing.T) {
-	validItem, err := NewItem("PART123", "Test Part", 10, LotForLot, 1, 100, 0, "EA")
+	validItem, err := NewItem("PART123", "Test Part", 10, LotForLot, 1, 100, 0, "EA", MakeBuyMake)
 	if err != nil {
 		t.Fatalf("Expected valid item creation to succeed: %v", err)
 	}
@@ -23,9 +23,12 @@ func TestItem_Validation(t *testing.T) {
 		safetyStock Quantity
 		uom         string
 		expectError string
+		makeBuyCode MakeBuyCode
 	}{
-		{"empty part number", "", "desc", 1, LotForLot, 0, 100, 0, "EA", "part number cannot be empty"},
-		{"empty description", "PART", "", 1, LotForLot, 0, 100, 0, "EA", "description cannot be empty"},
+		{"empty part number", "", "desc", 1, LotForLot, 0, 100, 0, "EA", "part number cannot be empty", MakeBuyMake},
+		{"empty description", "PART", "", 1, LotForLot, 0, 100, 0, "EA", "description cannot be empty",
+			MakeBuyMake,
+		},
 		{
 			"zero lead time",
 			"PART",
@@ -37,6 +40,7 @@ func TestItem_Validation(t *testing.T) {
 			0,
 			"EA",
 			"lead time must be positive, got 0",
+			MakeBuyMake,
 		},
 		{
 			"negative lead time",
@@ -49,6 +53,7 @@ func TestItem_Validation(t *testing.T) {
 			0,
 			"EA",
 			"lead time must be positive, got -1",
+			MakeBuyMake,
 		},
 		{
 			"negative min order qty",
@@ -61,6 +66,7 @@ func TestItem_Validation(t *testing.T) {
 			0,
 			"EA",
 			"minimum order quantity cannot be negative, got -1",
+			MakeBuyMake,
 		},
 		{
 			"negative safety stock",
@@ -73,8 +79,9 @@ func TestItem_Validation(t *testing.T) {
 			-1,
 			"EA",
 			"safety stock cannot be negative, got -1",
+			MakeBuyMake,
 		},
-		{"empty UOM", "PART", "desc", 1, LotForLot, 0, 100, 0, "", "unit of measure cannot be empty"},
+		{"empty UOM", "PART", "desc", 1, LotForLot, 0, 100, 0, "", "unit of measure cannot be empty", MakeBuyMake},
 		{
 			"MinimumQty with zero order qty",
 			"PART",
@@ -86,6 +93,7 @@ func TestItem_Validation(t *testing.T) {
 			0,
 			"EA",
 			"lot sizing rule MinimumQty requires non-zero minimum order quantity",
+			MakeBuyMake,
 		},
 		{
 			"zero max order qty",
@@ -98,6 +106,7 @@ func TestItem_Validation(t *testing.T) {
 			0,
 			"EA",
 			"maximum order quantity must be positive, got 0",
+			MakeBuyMake,
 		},
 		{
 			"negative max order qty",
@@ -110,6 +119,7 @@ func TestItem_Validation(t *testing.T) {
 			0,
 			"EA",
 			"maximum order quantity must be positive, got -1",
+			MakeBuyMake,
 		},
 		{
 			"max order qty less than min order qty",
@@ -122,6 +132,7 @@ func TestItem_Validation(t *testing.T) {
 			0,
 			"EA",
 			"maximum order quantity (5) cannot be less than minimum order quantity (10)",
+			MakeBuyMake,
 		},
 	}
 
@@ -136,6 +147,7 @@ func TestItem_Validation(t *testing.T) {
 				tc.maxOrderQty,
 				tc.safetyStock,
 				tc.uom,
+				tc.makeBuyCode,
 			)
 			if err == nil {
 				t.Fatalf("Expected error for %s, but got none", tc.name)

@@ -47,6 +47,7 @@ func (l *Loader) LoadItems(filename string) ([]*entities.Item, error) {
 		"max_order_qty",
 		"safety_stock",
 		"unit_of_measure",
+		"make_buy_code",
 	}
 	header := records[0]
 	if !validateHeader(header, expectedHeader) {
@@ -379,6 +380,11 @@ func parseItem(record []string) (entities.Item, error) {
 
 	unitOfMeasure := record[7]
 
+	makeBuyCode, err := parseMakeBuyCode(record[8])
+	if err != nil {
+		return entities.Item{}, err
+	}
+
 	item, err := entities.NewItem(
 		partNumber,
 		description,
@@ -388,6 +394,7 @@ func parseItem(record []string) (entities.Item, error) {
 		entities.Quantity(maxOrderQty),
 		entities.Quantity(safetyStock),
 		unitOfMeasure,
+		makeBuyCode,
 	)
 	if err != nil {
 		return entities.Item{}, fmt.Errorf("invalid item: %w", err)
@@ -533,6 +540,20 @@ func parseInventoryStatus(s string) (entities.InventoryStatus, error) {
 	default:
 		return entities.Available, fmt.Errorf(
 			"invalid status: %s (expected: Available, Allocated, or Quarantine)",
+			s,
+		)
+	}
+}
+
+func parseMakeBuyCode(s string) (entities.MakeBuyCode, error) {
+	switch strings.ToLower(s) {
+	case "make":
+		return entities.MakeBuyMake, nil
+	case "buy":
+		return entities.MakeBuyBuy, nil
+	default:
+		return entities.MakeBuyMake, fmt.Errorf(
+			"invalid make_buy_code: %s (expected: Make or Buy)",
 			s,
 		)
 	}

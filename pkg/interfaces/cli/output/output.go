@@ -32,10 +32,12 @@ func Generate(result *dto.MRPResult, config Config) error {
 		err = generateJSONOutput(result, config)
 	case "csv":
 		err = generateCSVOutput(result, config)
+	case "html":
+		err = generateHTMLOutput(result, config)
 	default:
 		err = fmt.Errorf("unsupported output format: %s", config.Format)
 	}
-	
+
 	if err != nil {
 		return err
 	}
@@ -232,19 +234,19 @@ func writeShortagesCSV(shortages []entities.Shortage, filename string) error {
 func generateSVGOutput(result *dto.MRPResult, config Config) error {
 	// Create Gantt chart
 	gantt := NewGanttChart(result)
-	
+
 	// Generate SVG content
 	svgContent := gantt.GenerateSVG(result)
-	
+
 	// Write SVG to file
 	err := os.WriteFile(config.SVGOutput, []byte(svgContent), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write SVG file: %w", err)
 	}
-	
+
 	if config.Verbose {
 		fmt.Printf("📊 SVG Gantt chart saved to: %s\n", config.SVGOutput)
 	}
-	
+
 	return nil
 }

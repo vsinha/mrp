@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MRP Interactive Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 60px 1fr 300px;
+            gap: 20px;
+            height: 100vh;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            grid-column: 1 / 3;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .network-panel, .timeline-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .info-panel {
+            grid-column: 1 / 3;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .svg-container {
+            width: 100%;
+            height: calc(100% - 50px);
+        }
+        
+        .network-svg, .timeline-svg {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .node:hover {
+            stroke-width: 3px;
+        }
+        
+        .link {
+            fill: none;
+            stroke: #999;
+            stroke-width: 1.5;
+            opacity: 0.6;
+        }
+        
+        .link.highlighted {
+            stroke: #ff6b6b;
+            stroke-width: 3;
+            opacity: 1;
+        }
+        
+        .timeline-bar {
+            cursor: pointer;
+            stroke: #333;
+            stroke-width: 1;
+            transition: all 0.3s ease;
+        }
+        
+        .timeline-bar:hover {
+            stroke-width: 2;
+            opacity: 0.8;
+        }
+        
+        .timeline-bar.highlighted {
+            stroke: #ff6b6b;
+            stroke-width: 3;
+        }
+        
+        .axis {
+            font-size: 12px;
+        }
+        
+        .grid-line {
+            stroke: #e0e0e0;
+            stroke-width: 1;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 250px;
+        }
+        
+        .info-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #2196F3;
+        }
+        
+        .info-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .shortage-item {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        
+        .allocation-item {
+            background: #e8f5e8;
+            border-left: 4px solid #4caf50;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 2px;
+        }
+        
+        .controls {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .filter-button {
+            padding: 5px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .filter-button.active {
+            background: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="header">
+            <div class="title">MRP Interactive Visualization</div>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="total-orders">{{.Statistics.TotalOrders}}</div>
+                    <div>Orders</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="total-parts">{{.Statistics.TotalParts}}</div>
+                    <div>Parts</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="total-shortages">{{.Statistics.TotalShortages}}</div>
+                    <div>Shortages</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="explosion-time">{{.ExplosionTimeFormatted}}</div>
+                    <div>Explosion Time</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="network-panel">
+            <div class="panel-title">Dependency Network</div>
+            <div class="controls">
+                <button class="filter-button active" data-filter="all">All</button>
+                <button class="filter-button" data-filter="make">Make Orders</button>
+                <button class="filter-button" data-filter="buy">Buy Orders</button>
+                <button class="filter-button" data-filter="shortages">Shortages</button>
+            </div>
+            <div class="svg-container">
+                <svg class="network-svg" id="network-svg"></svg>
+            </div>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4CAF50;"></div>
+                    <span>Make Orders</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #2196F3;"></div>
+                    <span>Buy Orders</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #FF9800;"></div>
+                    <span>Split Orders</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="timeline-panel">
+            <div class="panel-title">Production Timeline</div>
+            <div class="controls">
+                <button class="filter-button active" data-filter="all">All</button>
+                <button class="filter-button" data-filter="critical">Critical Path</button>
+                <button class="filter-button" data-filter="this-week">This Week</button>
+                <button class="filter-button" data-filter="next-month">Next Month</button>
+            </div>
+            <div class="svg-container">
+                <svg class="timeline-svg" id="timeline-svg"></svg>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <div class="info-section">
+                <div class="info-title">Selected Item Details</div>
+                <div id="selected-details">Hover over nodes or timeline bars to see detailed information</div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">Shortage Report</div>
+                <div id="shortage-report">
+                    {{if .Shortages}}
+                        {{range .Shortages}}
+                        <div class="shortage-item">
+                            <strong>{{.PartNumber}}</strong> - Short: {{.ShortQty}} | Need: {{.NeedDate.Format "2006-01-02"}} | Location: {{.Location}}
+                        </div>
+                        {{end}}
+                    {{else}}
+                        <div style="color: #4caf50;">No shortages detected ✓</div>
+                    {{end}}
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">Allocation Summary</div>
+                <div id="allocation-summary">
+                    {{if .Allocations}}
+                        {{range .Allocations}}
+                        <div class="allocation-item">
+                            <strong>{{.PartNumber}}</strong> - Allocated: {{.AllocatedQty}} | Remaining: {{.RemainingDemand}} | Location: {{.Location}}
+                        </div>
+                        {{end}}
+                    {{else}}
+                        <div>No allocations found</div>
+                    {{end}}
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">Process Information</div>
+                <div id="process-info">
+                    <strong>Total Explosion Time:</strong> {{.ExplosionTimeFormatted}}<br/>
+                    <strong>Total Orders Generated:</strong> {{.Statistics.TotalOrders}}<br/>
+                    <strong>Unique Parts:</strong> {{.Statistics.TotalParts}}<br/>
+                    <strong>Date Range:</strong> {{.StartDate.Format "2006-01-02"}} to {{.EndDate.Format "2006-01-02"}}<br/>
+                    <strong>BOM Levels:</strong> {{.Statistics.MaxBOMLevel}}<br/>
+                    <strong>Generated:</strong> {{.GeneratedAt}}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tooltip" id="tooltip" style="display: none;"></div>
+
+    <script>
+        // Embedded data
+        const mrpData = {{.DataJSON}};
+        
+        // Initialize visualization
+        let selectedNode = null;
+        let highlightedPaths = new Set();
+        
+        // Set up dimensions
+        const networkWidth = document.getElementById('network-svg').clientWidth;
+        const networkHeight = document.getElementById('network-svg').clientHeight;
+        const timelineWidth = document.getElementById('timeline-svg').clientWidth;
+        const timelineHeight = document.getElementById('timeline-svg').clientHeight;
+        
+        // Create SVG elements
+        const networkSvg = d3.select('#network-svg')
+            .attr('width', networkWidth)
+            .attr('height', networkHeight);
+            
+        const timelineSvg = d3.select('#timeline-svg')
+            .attr('width', timelineWidth)
+            .attr('height', timelineHeight);
+        
+        // Tooltip
+        const tooltip = d3.select('#tooltip');
+        
+        // Initialize network visualization
+        function initNetwork() {
+            const margin = {top: 20, right: 20, bottom: 20, left: 20};
+            const width = networkWidth - margin.left - margin.right;
+            const height = networkHeight - margin.top - margin.bottom;
+            
+            const g = networkSvg.append('g')
+                .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+            
+            // Create force simulation
+            const simulation = d3.forceSimulation(mrpData.nodes)
+                .force('link', d3.forceLink(mrpData.links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(30));
+            
+            // Create links
+            const link = g.append('g')
+                .attr('class', 'links')
+                .selectAll('line')
+                .data(mrpData.links)
+                .enter().append('line')
+                .attr('class', 'link');
+            
+            // Create nodes
+            const node = g.append('g')
+                .attr('class', 'nodes')
+                .selectAll('circle')
+                .data(mrpData.nodes)
+                .enter().append('circle')
+                .attr('class', 'node')
+                .attr('r', d => Math.max(8, Math.min(20, d.quantity / 5 + 8)))
+                .attr('fill', d => getNodeColor(d.orderType))
+                .attr('stroke', '#333')
+                .attr('stroke-width', 1.5)
+                .on('mouseover', handleNodeHover)
+                .on('mouseout', handleNodeOut)
+                .on('click', handleNodeClick)
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+            
+            // Add labels
+            const label = g.append('g')
+                .attr('class', 'labels')
+                .selectAll('text')
+                .data(mrpData.nodes)
+                .enter().append('text')
+                .text(d => d.partNumber)
+                .attr('font-size', 10)
+                .attr('text-anchor', 'middle')
+                .attr('dy', 25)
+                .attr('fill', '#333');
+            
+            // Update positions on tick
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+                
+                label
+                    .attr('x', d => d.x)
+                    .attr('y', d => d.y);
+            });
+            
+            // Drag functions
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+            
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+        
+        // Initialize timeline visualization
+        function initTimeline() {
+            const margin = {top: 20, right: 50, bottom: 60, left: 150};
+            const width = timelineWidth - margin.left - margin.right;
+            const height = timelineHeight - margin.top - margin.bottom;
+            
+            const g = timelineSvg.append('g')
+                .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+            
+            // Time scale
+            const startDate = new Date(mrpData.startDate);
+            const endDate = new Date(mrpData.endDate);
+            const xScale = d3.scaleTime()
+                .domain([startDate, endDate])
+                .range([0, width]);
+            
+            // Part scale
+            const uniqueParts = [...new Set(mrpData.timelineBars.map(d => d.partNumber))];
+            const yScale = d3.scaleBand()
+                .domain(uniqueParts)
+                .range([0, height])
+                .padding(0.1);
+            
+            // Add time axis
+            g.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', 'translate(0,' + height + ')')
+                .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat('%m/%d')));
+            
+            // Add part axis
+            g.append('g')
+                .attr('class', 'y-axis')
+                .call(d3.axisLeft(yScale));
+            
+            // Add time grid
+            g.append('g')
+                .attr('class', 'grid')
+                .attr('transform', 'translate(0,' + height + ')')
+                .call(d3.axisBottom(xScale)
+                    .tickSize(-height)
+                    .tickFormat('')
+                );
+            
+            // Add timeline bars
+            const bars = g.selectAll('.timeline-bar')
+                .data(mrpData.timelineBars)
+                .enter().append('rect')
+                .attr('class', 'timeline-bar')
+                .attr('x', d => xScale(new Date(d.startDate)))
+                .attr('y', d => yScale(d.partNumber))
+                .attr('width', d => Math.max(2, xScale(new Date(d.dueDate)) - xScale(new Date(d.startDate))))
+                .attr('height', yScale.bandwidth())
+                .attr('fill', d => d.color)
+                .on('mouseover', handleBarHover)
+                .on('mouseout', handleBarOut)
+                .on('click', handleBarClick);
+        }
+        
+        // Event handlers
+        function handleNodeHover(event, d) {
+            highlightConnectedElements(d.id);
+            showTooltip(event, d, 'node');
+        }
+        
+        function handleNodeOut() {
+            clearHighlights();
+            hideTooltip();
+        }
+        
+        function handleNodeClick(event, d) {
+            selectedNode = d;
+            updateSelectedDetails(d);
+        }
+        
+        function handleBarHover(event, d) {
+            highlightConnectedElements(d.id);
+            showTooltip(event, d, 'bar');
+        }
+        
+        function handleBarOut() {
+            clearHighlights();
+            hideTooltip();
+        }
+        
+        function handleBarClick(event, d) {
+            selectedNode = d;
+            updateSelectedDetails(d);
+        }
+        
+        function highlightConnectedElements(elementId) {
+            // Highlight in network
+            networkSvg.selectAll('.node')
+                .classed('highlighted', d => d.id === elementId);
+            
+            networkSvg.selectAll('.link')
+                .classed('highlighted', d => d.source.id === elementId || d.target.id === elementId);
+            
+            // Highlight in timeline
+            timelineSvg.selectAll('.timeline-bar')
+                .classed('highlighted', d => d.id === elementId);
+        }
+        
+        function clearHighlights() {
+            networkSvg.selectAll('.highlighted').classed('highlighted', false);
+            timelineSvg.selectAll('.highlighted').classed('highlighted', false);
+        }
+        
+        function showTooltip(event, d, type) {
+            let content = '';
+            if (type === 'node') {
+                content = '<strong>' + d.partNumber + '</strong><br/>' +
+                         'Order Type: ' + d.orderType + '<br/>' +
+                         'Quantity: ' + d.quantity + '<br/>' +
+                         'Start: ' + formatDate(d.startDate) + '<br/>' +
+                         'Due: ' + formatDate(d.dueDate) + '<br/>' +
+                         'Location: ' + d.location;
+            } else {
+                content = '<strong>' + d.partNumber + '</strong><br/>' +
+                         'Quantity: ' + d.quantity + '<br/>' +
+                         'Duration: ' + formatDuration(new Date(d.dueDate) - new Date(d.startDate)) + '<br/>' +
+                         'Split: ' + (d.split > 0 ? 'Yes (' + d.split + ')' : 'No');
+            }
+            
+            tooltip
+                .style('display', 'block')
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 10) + 'px')
+                .html(content);
+        }
+        
+        function hideTooltip() {
+            tooltip.style('display', 'none');
+        }
+        
+        function updateSelectedDetails(d) {
+            const details = document.getElementById('selected-details');
+            details.innerHTML = 
+                '<strong>Part Number:</strong> ' + d.partNumber + '<br/>' +
+                '<strong>Order Type:</strong> ' + d.orderType + '<br/>' +
+                '<strong>Quantity:</strong> ' + d.quantity + '<br/>' +
+                '<strong>Start Date:</strong> ' + formatDate(d.startDate) + '<br/>' +
+                '<strong>Due Date:</strong> ' + formatDate(d.dueDate) + '<br/>' +
+                '<strong>Location:</strong> ' + d.location + '<br/>' +
+                '<strong>Lead Time:</strong> ' + formatDuration(new Date(d.dueDate) - new Date(d.startDate));
+        }
+        
+        // Utility functions
+        function getNodeColor(orderType) {
+            switch(orderType) {
+                case 'Make': return '#4CAF50';
+                case 'Buy': return '#2196F3';
+                default: return '#9E9E9E';
+            }
+        }
+        
+        function formatDate(dateStr) {
+            return new Date(dateStr).toLocaleDateString();
+        }
+        
+        function formatDuration(ms) {
+            if (typeof ms === 'number') {
+                const seconds = Math.floor(ms / 1000000000); // Convert nanoseconds to seconds
+                if (seconds < 1) return '< 1s';
+                if (seconds < 60) return seconds + 's';
+                if (seconds < 3600) return Math.floor(seconds / 60) + 'm';
+                return Math.floor(seconds / 3600) + 'h';
+            }
+            return ms;
+        }
+        
+        // Filter handlers
+        document.querySelectorAll('.filter-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const filter = this.dataset.filter;
+                const panel = this.closest('.network-panel, .timeline-panel');
+                
+                // Update button states
+                panel.querySelectorAll('.filter-button').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Apply filter (simplified - would implement actual filtering)
+                console.log('Applying filter:', filter);
+            });
+        });
+        
+        // Initialize everything
+        initNetwork();
+        initTimeline();
+        
+    </script>
+</body>
+</html>

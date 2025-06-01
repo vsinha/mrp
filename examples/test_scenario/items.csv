@@ -1,7 +1,7 @@
-part_number,description,lead_time_days,lot_size_rule,min_order_qty,safety_stock,unit_of_measure
-ROCKET_ENGINE,Main Rocket Engine Assembly,120,LotForLot,1,0,EA
-TURBOPUMP_V3,Turbopump Assembly V3,60,LotForLot,1,0,EA
-COMBUSTION_CHAMBER,Main Combustion Chamber,90,LotForLot,1,0,EA
-VALVE_ASSEMBLY,Main Valve Assembly,45,MinimumQty,10,5,EA
-TURBINE_BLADE,Turbine Blade,30,LotForLot,1,0,EA
-BEARING_SET,Bearing Set,25,LotForLot,1,0,EA
+part_number,description,lead_time_days,lot_size_rule,min_order_qty,max_order_qty,safety_stock,unit_of_measure,make_buy_code
+ROCKET_ENGINE,Main Rocket Engine Assembly,120,LotForLot,1,10,0,EA,Buy
+TURBOPUMP_V3,Turbopump Assembly V3,60,LotForLot,1,25,0,EA,Buy
+COMBUSTION_CHAMBER,Main Combustion Chamber,90,LotForLot,1,20,0,EA,Buy
+VALVE_ASSEMBLY,Main Valve Assembly,45,MinimumQty,10,100,5,EA,Buy
+TURBINE_BLADE,Turbine Blade,30,LotForLot,1,50,0,EA,Buy
+BEARING_SET,Bearing Set,25,LotForLot,1,100,0,EA,Buy

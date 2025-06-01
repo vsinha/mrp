@@ -625,10 +625,15 @@ func (s *MRPService) scheduleForward(
 		// Apply lot sizing to net requirements
 		orderQty := s.applyLotSizing(netReq.Quantity, node.Item)
 
-		// Determine order type
-		orderType := entities.Make
-		if node.Item.LeadTimeDays > 30 {
+		// Determine order type from item's make/buy code
+		var orderType entities.OrderType
+		switch node.Item.MakeBuyCode {
+		case entities.MakeBuyMake:
+			orderType = entities.Make
+		case entities.MakeBuyBuy:
 			orderType = entities.Buy
+		default:
+			orderType = entities.Make // Default fallback
 		}
 
 		// Split orders if they exceed max order quantity and schedule sequentially

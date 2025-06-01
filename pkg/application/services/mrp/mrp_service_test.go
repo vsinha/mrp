@@ -391,6 +391,7 @@ func TestMRPService_ExplodeDemand_OrderSplitting(t *testing.T) {
 		entities.Quantity(15), // max qty - this will force splitting
 		entities.Quantity(0),  // safety stock
 		"EA",
+		entities.MakeBuyMake,
 	)
 	if err != nil {
 		t.Fatalf("Failed to create item: %v", err)

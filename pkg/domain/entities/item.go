@@ -31,6 +31,26 @@ func (l LotSizeRule) String() string {
 	}
 }
 
+// MakeBuyCode represents whether an item is made internally or purchased
+type MakeBuyCode int
+
+const (
+	MakeBuyMake MakeBuyCode = iota
+	MakeBuyBuy
+)
+
+// String method for MakeBuyCode enum
+func (m MakeBuyCode) String() string {
+	switch m {
+	case MakeBuyMake:
+		return "Make"
+	case MakeBuyBuy:
+		return "Buy"
+	default:
+		return "Unknown"
+	}
+}
+
 // Item represents a manufacturing item with its properties
 type Item struct {
 	PartNumber    PartNumber
@@ -41,6 +61,7 @@ type Item struct {
 	MaxOrderQty   Quantity
 	SafetyStock   Quantity
 	UnitOfMeasure string
+	MakeBuyCode   MakeBuyCode
 }
 
 // NewItem creates a validated Item
@@ -51,6 +72,7 @@ func NewItem(
 	lotSizeRule LotSizeRule,
 	minOrderQty, maxOrderQty, safetyStock Quantity,
 	unitOfMeasure string,
+	makeBuyCode MakeBuyCode,
 ) (*Item, error) {
 	// Validate inputs
 	if string(partNumber) == "" {
@@ -95,5 +117,6 @@ func NewItem(
 		MaxOrderQty:   maxOrderQty,
 		SafetyStock:   safetyStock,
 		UnitOfMeasure: unitOfMeasure,
+		MakeBuyCode:   makeBuyCode,
 	}, nil
 }

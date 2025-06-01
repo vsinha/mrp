@@ -239,12 +239,20 @@ func (gc *GanttChart) drawTimeAxis(svg *strings.Builder) {
 		gc.MarginLeft, gc.Height-gc.MarginBottom, gc.Width-gc.MarginRight, gc.Height-gc.MarginBottom))
 }
 
-// drawTimeGrid draws vertical grid lines
+// FIXED: drawTimeGrid to use consistent row calculation with proper bounds
 func (gc *GanttChart) drawTimeGrid(svg *strings.Builder, numRows int) {
 	chartWidth := gc.Width - gc.MarginLeft - gc.MarginRight
 	totalDuration := gc.EndTime.Sub(gc.StartTime)
 	gridTop := gc.MarginTop
-	gridBottom := gc.MarginTop + numRows*gc.RowHeight
+
+	// FIXED: Calculate proper grid bottom to match drawPartRows logic
+	maxRowY := gc.Height - gc.MarginBottom - 30 // Leave space above time axis
+	availableHeight := maxRowY - gc.MarginTop
+	adjustedRowHeight := availableHeight / numRows
+	if adjustedRowHeight > gc.RowHeight {
+		adjustedRowHeight = gc.RowHeight
+	}
+	gridBottom := gc.MarginTop + numRows*adjustedRowHeight
 
 	// Calculate grid interval
 	days := int(math.Ceil(totalDuration.Hours() / 24))
@@ -270,40 +278,63 @@ func (gc *GanttChart) drawTimeGrid(svg *strings.Builder, numRows int) {
 	}
 }
 
-// drawPartRows draws the part labels and their associated bars
+// FIXED: drawPartRows with proper spacing calculation to avoid time axis overlap
 func (gc *GanttChart) drawPartRows(svg *strings.Builder, partRows map[entities.PartNumber][]GanttBar) {
-	// Sort parts for consistent ordering
+	// Sort parts by earliest start time for better visualization
 	var parts []entities.PartNumber
 	for part := range partRows {
 		parts = append(parts, part)
 	}
 	sort.Slice(parts, func(i, j int) bool {
-		return string(parts[i]) < string(parts[j])
+		// Find earliest start time for each part
+		iEarliest := partRows[parts[i]][0].StartDate
+		jEarliest := partRows[parts[j]][0].StartDate
+
+		for _, bar := range partRows[parts[i]] {
+			if bar.StartDate.Before(iEarliest) {
+				iEarliest = bar.StartDate
+			}
+		}
+		for _, bar := range partRows[parts[j]] {
+			if bar.StartDate.Before(jEarliest) {
+				jEarliest = bar.StartDate
+			}
+		}
+
+		return iEarliest.Before(jEarliest)
 	})
+
+	// FIXED: Calculate proper chart bounds to avoid time axis overlap
+	maxRowY := gc.Height - gc.MarginBottom - 30 // Leave 30px buffer above time axis
+	availableHeight := maxRowY - gc.MarginTop
+	adjustedRowHeight := availableHeight / len(parts)
+	if adjustedRowHeight > gc.RowHeight {
+		adjustedRowHeight = gc.RowHeight // Don't make rows unnecessarily tall
+	}
 
 	// Draw each part row
 	for i, part := range parts {
-		y := gc.MarginTop + i*gc.RowHeight
+		y := gc.MarginTop + i*adjustedRowHeight // Use adjusted height
 		bars := partRows[part]
 
-		// Part label
-		svg.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="part-label">%s</text>`,
-			gc.MarginLeft-10, y+gc.RowHeight/2+4, string(part)))
+		// Part label - positioned further left to avoid overlap
+		svg.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="part-label" text-anchor="end">%s</text>`,
+			gc.MarginLeft-15, y+adjustedRowHeight/2+4, string(part)))
 
-		// Horizontal row line
+		// Horizontal row line - FIXED: position properly with adjusted height
 		svg.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" class="grid-line"/>`,
-			gc.MarginLeft, y+gc.RowHeight, gc.Width-gc.MarginRight, y+gc.RowHeight))
+			gc.MarginLeft, y+adjustedRowHeight, gc.Width-gc.MarginRight, y+adjustedRowHeight))
 
 		// Draw bars for this part
 		for _, bar := range bars {
-			gc.drawBar(svg, bar, y)
+			gc.drawBar(svg, bar, y, adjustedRowHeight)
 		}
 	}
 }
 
-// drawBar draws a single Gantt bar
-func (gc *GanttChart) drawBar(svg *strings.Builder, bar GanttBar, rowY int) {
-	barHeight := gc.RowHeight - 4
+// FIXED: drawBar with proper height parameter to use adjusted row height
+func (gc *GanttChart) drawBar(svg *strings.Builder, bar GanttBar, rowY int, rowHeight int) {
+	barHeight := rowHeight - 4
 	barY := rowY + 2
 
 	// Draw bar rectangle
@@ -338,7 +369,7 @@ func (gc *GanttChart) drawBar(svg *strings.Builder, bar GanttBar, rowY int) {
 // drawLegend draws a legend explaining the colors
 func (gc *GanttChart) drawLegend(svg *strings.Builder) {
 	legendX := gc.Width - gc.MarginRight - 200
-	legendY := 20
+	legendY := 50
 
 	// Legend background
 	svg.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="180" height="60" fill="white" stroke="#ccc" stroke-width="1"/>`,
