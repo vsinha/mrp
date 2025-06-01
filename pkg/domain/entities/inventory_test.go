@@ -28,12 +28,26 @@ func TestInventoryLot_Validation(t *testing.T) {
 		{"empty part number", "", "LOT001", "WAREHOUSE", 10, "part number cannot be empty"},
 		{"empty lot number", "PART123", "", "WAREHOUSE", 10, "lot number cannot be empty"},
 		{"empty location", "PART123", "LOT001", "", 10, "location cannot be empty"},
-		{"negative quantity", "PART123", "LOT001", "WAREHOUSE", -5, "quantity cannot be negative, got -5"},
+		{
+			"negative quantity",
+			"PART123",
+			"LOT001",
+			"WAREHOUSE",
+			-5,
+			"quantity cannot be negative, got -5",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewInventoryLot(tc.partNumber, tc.lotNumber, tc.location, tc.quantity, receiptDate, Available)
+			_, err := NewInventoryLot(
+				tc.partNumber,
+				tc.lotNumber,
+				tc.location,
+				tc.quantity,
+				receiptDate,
+				Available,
+			)
 			if err == nil {
 				t.Fatalf("Expected error for %s, but got none", tc.name)
 			}
@@ -47,7 +61,13 @@ func TestInventoryLot_Validation(t *testing.T) {
 func TestSerializedInventory_Validation(t *testing.T) {
 	receiptDate := time.Now()
 
-	validSerial, err := NewSerializedInventory("PART123", "SN001", "WAREHOUSE", Available, receiptDate)
+	validSerial, err := NewSerializedInventory(
+		"PART123",
+		"SN001",
+		"WAREHOUSE",
+		Available,
+		receiptDate,
+	)
 	if err != nil {
 		t.Fatalf("Expected valid serialized inventory creation to succeed: %v", err)
 	}
@@ -70,7 +90,13 @@ func TestSerializedInventory_Validation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewSerializedInventory(tc.partNumber, tc.serialNumber, tc.location, Available, receiptDate)
+			_, err := NewSerializedInventory(
+				tc.partNumber,
+				tc.serialNumber,
+				tc.location,
+				Available,
+				receiptDate,
+			)
 			if err == nil {
 				t.Fatalf("Expected error for %s, but got none", tc.name)
 			}

@@ -186,7 +186,9 @@ func TestMRPIntegration_PerformanceWithLargeBOM(t *testing.T) {
 			parentPart := entities.PartNumber(fmt.Sprintf("LEVEL_%d_PART_%d", level, part))
 
 			for childPart := 0; childPart < partsPerLevel; childPart++ {
-				childPartNum := entities.PartNumber(fmt.Sprintf("LEVEL_%d_PART_%d", level+1, childPart))
+				childPartNum := entities.PartNumber(
+					fmt.Sprintf("LEVEL_%d_PART_%d", level+1, childPart),
+				)
 
 				bomLine := &entities.BOMLine{
 					ParentPN:    parentPart,

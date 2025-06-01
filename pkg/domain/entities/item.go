@@ -43,7 +43,14 @@ type Item struct {
 }
 
 // NewItem creates a validated Item
-func NewItem(partNumber PartNumber, description string, leadTimeDays int, lotSizeRule LotSizeRule, minOrderQty, safetyStock Quantity, unitOfMeasure string) (*Item, error) {
+func NewItem(
+	partNumber PartNumber,
+	description string,
+	leadTimeDays int,
+	lotSizeRule LotSizeRule,
+	minOrderQty, safetyStock Quantity,
+	unitOfMeasure string,
+) (*Item, error) {
 	// Validate inputs
 	if string(partNumber) == "" {
 		return nil, fmt.Errorf("part number cannot be empty")
@@ -66,7 +73,10 @@ func NewItem(partNumber PartNumber, description string, leadTimeDays int, lotSiz
 
 	// Business rule validation
 	if (lotSizeRule == MinimumQty || lotSizeRule == StandardPack) && minOrderQty == 0 {
-		return nil, fmt.Errorf("lot sizing rule %s requires non-zero minimum order quantity", lotSizeRule)
+		return nil, fmt.Errorf(
+			"lot sizing rule %s requires non-zero minimum order quantity",
+			lotSizeRule,
+		)
 	}
 
 	return &Item{

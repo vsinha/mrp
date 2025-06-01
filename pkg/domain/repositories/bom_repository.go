@@ -17,5 +17,9 @@ type BOMRepository interface {
 
 	// GetEffectiveAlternates returns alternate BOM lines for a specific FindNumber and serial.
 	// Filters by serial effectivity and groups alternates together.
-	GetEffectiveAlternates(parentPN entities.PartNumber, findNumber int, targetSerial string) ([]*entities.BOMLine, error)
+	GetEffectiveAlternates(
+		parentPN entities.PartNumber,
+		findNumber int,
+		targetSerial string,
+	) ([]*entities.BOMLine, error)
 }

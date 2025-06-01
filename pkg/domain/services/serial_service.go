@@ -24,7 +24,10 @@ func NewSerialComparator() *SerialComparator {
 }
 
 // IsSerialInRange checks if a target serial falls within the effectivity range
-func (sc *SerialComparator) IsSerialInRange(targetSerial string, effectivity entities.SerialEffectivity) bool {
+func (sc *SerialComparator) IsSerialInRange(
+	targetSerial string,
+	effectivity entities.SerialEffectivity,
+) bool {
 	// Handle open-ended ranges
 	if effectivity.ToSerial == "" {
 		return sc.CompareSerials(targetSerial, effectivity.FromSerial) >= 0
@@ -85,7 +88,10 @@ func (sc *SerialComparator) parseSerial(serial string) (string, int, error) {
 }
 
 // ResolveSerialEffectivity filters BOM lines to only those effective for the target serial
-func (sc *SerialComparator) ResolveSerialEffectivity(targetSerial string, bomLines []*entities.BOMLine) []*entities.BOMLine {
+func (sc *SerialComparator) ResolveSerialEffectivity(
+	targetSerial string,
+	bomLines []*entities.BOMLine,
+) []*entities.BOMLine {
 	var effective []*entities.BOMLine
 
 	for _, line := range bomLines {

@@ -28,7 +28,11 @@ func SelectBestAlternateByPriority(alternates []*entities.BOMLine) *entities.BOM
 
 // SelectBestAlternateWithInventory selects the best alternate considering inventory availability
 // Falls back to priority-based selection if no alternate has sufficient inventory
-func SelectBestAlternateWithInventory(alternates []*entities.BOMLine, requiredQty entities.Quantity, inventoryRepo repositories.InventoryRepository) *entities.BOMLine {
+func SelectBestAlternateWithInventory(
+	alternates []*entities.BOMLine,
+	requiredQty entities.Quantity,
+	inventoryRepo repositories.InventoryRepository,
+) *entities.BOMLine {
 	if len(alternates) == 0 {
 		return nil
 	}
@@ -61,7 +65,10 @@ func SelectBestAlternateWithInventory(alternates []*entities.BOMLine, requiredQt
 }
 
 // getAvailableQuantity calculates total available quantity for a part number
-func getAvailableQuantity(partNumber entities.PartNumber, inventoryRepo repositories.InventoryRepository) (entities.Quantity, error) {
+func getAvailableQuantity(
+	partNumber entities.PartNumber,
+	inventoryRepo repositories.InventoryRepository,
+) (entities.Quantity, error) {
 	// Get all inventory lots for this part (we'll assume "" location means all locations)
 	lots, err := inventoryRepo.GetInventoryLots(partNumber, "")
 	if err != nil {

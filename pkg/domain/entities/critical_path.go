@@ -46,7 +46,11 @@ func (analysis *CriticalPathAnalysis) GetCriticalPathSummary() string {
 	}
 
 	cp := analysis.CriticalPath
-	summary := fmt.Sprintf("Critical Path: %d days (%d effective)", cp.TotalLeadTime, cp.EffectiveLeadTime)
+	summary := fmt.Sprintf(
+		"Critical Path: %d days (%d effective)",
+		cp.TotalLeadTime,
+		cp.EffectiveLeadTime,
+	)
 	if cp.BottleneckPart != "" {
 		summary += fmt.Sprintf(" | Bottleneck: %s", cp.BottleneckPart)
 	}

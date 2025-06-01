@@ -16,7 +16,10 @@ type PlanningOrchestrator struct {
 }
 
 // NewPlanningOrchestrator creates a new planning orchestrator
-func NewPlanningOrchestrator(mrpService *MRPService, criticalPathService *CriticalPathService) *PlanningOrchestrator {
+func NewPlanningOrchestrator(
+	mrpService *MRPService,
+	criticalPathService *CriticalPathService,
+) *PlanningOrchestrator {
 	return &PlanningOrchestrator{
 		mrpService:          mrpService,
 		criticalPathService: criticalPathService,
@@ -34,7 +37,11 @@ type PlanningResult struct {
 }
 
 // RunCompletePlanning performs MRP explosion followed by allocation-aware critical path analysis
-func (po *PlanningOrchestrator) RunCompletePlanning(ctx context.Context, demands []*entities.DemandRequirement, topPaths int) (*PlanningResult, error) {
+func (po *PlanningOrchestrator) RunCompletePlanning(
+	ctx context.Context,
+	demands []*entities.DemandRequirement,
+	topPaths int,
+) (*PlanningResult, error) {
 	if len(demands) == 0 {
 		return nil, fmt.Errorf("no demands provided for planning")
 	}
@@ -74,7 +81,11 @@ func (po *PlanningOrchestrator) RunCompletePlanning(ctx context.Context, demands
 }
 
 // AnalyzeCriticalPathForDemand performs critical path analysis for a specific demand using MRP allocation results
-func (po *PlanningOrchestrator) AnalyzeCriticalPathForDemand(ctx context.Context, demand *entities.DemandRequirement, topPaths int) (*entities.CriticalPathAnalysis, error) {
+func (po *PlanningOrchestrator) AnalyzeCriticalPathForDemand(
+	ctx context.Context,
+	demand *entities.DemandRequirement,
+	topPaths int,
+) (*entities.CriticalPathAnalysis, error) {
 	// First run MRP to get allocation results
 	mrpResult, err := po.mrpService.ExplodeDemand(ctx, []*entities.DemandRequirement{demand})
 	if err != nil {
@@ -93,7 +104,13 @@ func (po *PlanningOrchestrator) AnalyzeCriticalPathForDemand(ctx context.Context
 }
 
 // AnalyzeCriticalPathForPart performs critical path analysis for a specific part using MRP allocation results
-func (po *PlanningOrchestrator) AnalyzeCriticalPathForPart(ctx context.Context, partNumber entities.PartNumber, targetSerial string, location string, topPaths int) (*entities.CriticalPathAnalysis, error) {
+func (po *PlanningOrchestrator) AnalyzeCriticalPathForPart(
+	ctx context.Context,
+	partNumber entities.PartNumber,
+	targetSerial string,
+	location string,
+	topPaths int,
+) (*entities.CriticalPathAnalysis, error) {
 	// Create a demand for this part to get allocation results
 	demand := &entities.DemandRequirement{
 		PartNumber:   partNumber,
@@ -108,8 +125,22 @@ func (po *PlanningOrchestrator) AnalyzeCriticalPathForPart(ctx context.Context, 
 }
 
 // AnalyzeCriticalPathWithMRPResults performs critical path analysis using existing MRP results
-func (po *PlanningOrchestrator) AnalyzeCriticalPathWithMRPResults(ctx context.Context, partNumber entities.PartNumber, targetSerial string, location string, topPaths int, mrpResult *dto.MRPResult) (*entities.CriticalPathAnalysis, error) {
-	return po.criticalPathService.AnalyzeCriticalPathWithAllocations(ctx, partNumber, targetSerial, location, topPaths, mrpResult.Allocations)
+func (po *PlanningOrchestrator) AnalyzeCriticalPathWithMRPResults(
+	ctx context.Context,
+	partNumber entities.PartNumber,
+	targetSerial string,
+	location string,
+	topPaths int,
+	mrpResult *dto.MRPResult,
+) (*entities.CriticalPathAnalysis, error) {
+	return po.criticalPathService.AnalyzeCriticalPathWithAllocations(
+		ctx,
+		partNumber,
+		targetSerial,
+		location,
+		topPaths,
+		mrpResult.Allocations,
+	)
 }
 
 // GetSummary returns a formatted summary of the planning results
@@ -120,6 +151,9 @@ func (result *PlanningResult) GetSummary() string {
 		len(result.MRPResult.Allocations),
 		len(result.MRPResult.ShortageReport))
 	summary += fmt.Sprintf("  Critical Path: %s\n", result.CriticalPath.GetCriticalPathSummary())
-	summary += fmt.Sprintf("  Inventory Coverage: %.1f%%", result.CriticalPath.GetInventoryCoverage())
+	summary += fmt.Sprintf(
+		"  Inventory Coverage: %.1f%%",
+		result.CriticalPath.GetInventoryCoverage(),
+	)
 	return summary
 }

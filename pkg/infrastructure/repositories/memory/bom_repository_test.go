@@ -348,18 +348,39 @@ func TestBOMRepository_GetEffectiveAlternates(t *testing.T) {
 	}
 
 	// Add alternates with different effectivities
-	earlyPrimary, err := entities.NewBOMLine("F1_ENGINE", "F1_TURBOPUMP_V1", 1, 300, *earlyEffectivity, 0)
+	earlyPrimary, err := entities.NewBOMLine(
+		"F1_ENGINE",
+		"F1_TURBOPUMP_V1",
+		1,
+		300,
+		*earlyEffectivity,
+		0,
+	)
 	if err != nil {
 		t.Fatalf("Failed to create early primary BOM line: %v", err)
 	}
 
-	latePrimary, err := entities.NewBOMLine("F1_ENGINE", "F1_TURBOPUMP_V2", 1, 300, *lateEffectivity, 0)
+	latePrimary, err := entities.NewBOMLine(
+		"F1_ENGINE",
+		"F1_TURBOPUMP_V2",
+		1,
+		300,
+		*lateEffectivity,
+		0,
+	)
 	if err != nil {
 		t.Fatalf("Failed to create late primary BOM line: %v", err)
 	}
 
 	// Add different FindNumber for comparison
-	differentFind, err := entities.NewBOMLine("F1_ENGINE", "F1_IGNITER", 1, 400, *earlyEffectivity, 0)
+	differentFind, err := entities.NewBOMLine(
+		"F1_ENGINE",
+		"F1_IGNITER",
+		1,
+		400,
+		*earlyEffectivity,
+		0,
+	)
 	if err != nil {
 		t.Fatalf("Failed to create different FindNumber BOM line: %v", err)
 	}

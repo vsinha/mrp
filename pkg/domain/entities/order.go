@@ -41,7 +41,14 @@ type PlannedOrder struct {
 }
 
 // NewPlannedOrder creates a validated PlannedOrder
-func NewPlannedOrder(partNumber PartNumber, quantity Quantity, startDate, dueDate time.Time, demandTrace, location string, orderType OrderType, targetSerial string) (*PlannedOrder, error) {
+func NewPlannedOrder(
+	partNumber PartNumber,
+	quantity Quantity,
+	startDate, dueDate time.Time,
+	demandTrace, location string,
+	orderType OrderType,
+	targetSerial string,
+) (*PlannedOrder, error) {
 	if string(partNumber) == "" {
 		return nil, fmt.Errorf("part number cannot be empty")
 	}

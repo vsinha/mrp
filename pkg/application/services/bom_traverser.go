@@ -27,7 +27,12 @@ type BOMNodeVisitor interface {
 
 	// ProcessChildren is called after visiting all children
 	// Receives the node context, data from VisitNode, and results from children
-	ProcessChildren(ctx context.Context, nodeCtx BOMNodeContext, nodeData interface{}, childResults []interface{}) (interface{}, error)
+	ProcessChildren(
+		ctx context.Context,
+		nodeCtx BOMNodeContext,
+		nodeData interface{},
+		childResults []interface{},
+	) (interface{}, error)
 }
 
 // BOMTraverser provides common BOM traversal logic with alternate selection
@@ -128,9 +133,18 @@ func (bt *BOMTraverser) TraverseBOM(
 
 	// For each FindNumber group, select best alternate and traverse
 	for findNumber := range alternateGroups {
-		effectiveAlternates, err := bt.bomRepo.GetEffectiveAlternates(partNumber, findNumber, targetSerial)
+		effectiveAlternates, err := bt.bomRepo.GetEffectiveAlternates(
+			partNumber,
+			findNumber,
+			targetSerial,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get effective alternates for %s find %d: %w", partNumber, findNumber, err)
+			return nil, fmt.Errorf(
+				"failed to get effective alternates for %s find %d: %w",
+				partNumber,
+				findNumber,
+				err,
+			)
 		}
 
 		if len(effectiveAlternates) == 0 {
@@ -145,9 +159,21 @@ func (bt *BOMTraverser) TraverseBOM(
 
 		// Recursively traverse the selected alternate
 		childQty := selectedAlternate.QtyPer * quantity
-		childResult, err := bt.TraverseBOM(ctx, selectedAlternate.ChildPN, targetSerial, location, childQty, level+1, visitor)
+		childResult, err := bt.TraverseBOM(
+			ctx,
+			selectedAlternate.ChildPN,
+			targetSerial,
+			location,
+			childQty,
+			level+1,
+			visitor,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to traverse child %s: %w", selectedAlternate.ChildPN, err)
+			return nil, fmt.Errorf(
+				"failed to traverse child %s: %w",
+				selectedAlternate.ChildPN,
+				err,
+			)
 		}
 
 		childResults = append(childResults, childResult)

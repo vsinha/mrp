@@ -164,9 +164,20 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 		criticalPathStartTime := time.Now()
 
 		for _, demand := range demands {
-			analysis, err := orchestrator.AnalyzeCriticalPathWithMRPResults(ctx, demand.PartNumber, demand.TargetSerial, demand.Location, c.config.TopPaths, result)
+			analysis, err := orchestrator.AnalyzeCriticalPathWithMRPResults(
+				ctx,
+				demand.PartNumber,
+				demand.TargetSerial,
+				demand.Location,
+				c.config.TopPaths,
+				result,
+			)
 			if err != nil {
-				fmt.Printf("Warning: Failed to analyze critical path for %s: %v\n", demand.PartNumber, err)
+				fmt.Printf(
+					"Warning: Failed to analyze critical path for %s: %v\n",
+					demand.PartNumber,
+					err,
+				)
 				continue
 			}
 			criticalPathResults = append(criticalPathResults, analysis)

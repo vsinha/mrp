@@ -97,7 +97,10 @@ func (r *BOMRepository) GetBOMLines(partNumber entities.PartNumber) ([]*entities
 }
 
 // GetEffectiveLines returns the effective BOM lines for a part and target serial
-func (r *BOMRepository) GetEffectiveLines(partNumber entities.PartNumber, serial string) ([]*entities.BOMLine, error) {
+func (r *BOMRepository) GetEffectiveLines(
+	partNumber entities.PartNumber,
+	serial string,
+) ([]*entities.BOMLine, error) {
 	indexes, exists := r.bomIndexes[partNumber]
 	if !exists {
 		return []*entities.BOMLine{}, nil
@@ -136,7 +139,9 @@ func (r *BOMRepository) SaveItem(item *entities.Item) error {
 }
 
 // GetAlternateGroups returns BOM lines grouped by FindNumber for a parent part
-func (r *BOMRepository) GetAlternateGroups(parentPN entities.PartNumber) (map[int][]*entities.BOMLine, error) {
+func (r *BOMRepository) GetAlternateGroups(
+	parentPN entities.PartNumber,
+) (map[int][]*entities.BOMLine, error) {
 	indexes, exists := r.bomIndexes[parentPN]
 	if !exists {
 		return make(map[int][]*entities.BOMLine), nil
@@ -153,7 +158,11 @@ func (r *BOMRepository) GetAlternateGroups(parentPN entities.PartNumber) (map[in
 }
 
 // GetEffectiveAlternates returns alternate BOM lines for a specific FindNumber and serial
-func (r *BOMRepository) GetEffectiveAlternates(parentPN entities.PartNumber, findNumber int, targetSerial string) ([]*entities.BOMLine, error) {
+func (r *BOMRepository) GetEffectiveAlternates(
+	parentPN entities.PartNumber,
+	findNumber int,
+	targetSerial string,
+) ([]*entities.BOMLine, error) {
 	indexes, exists := r.bomIndexes[parentPN]
 	if !exists {
 		return []*entities.BOMLine{}, nil
@@ -163,7 +172,8 @@ func (r *BOMRepository) GetEffectiveAlternates(parentPN entities.PartNumber, fin
 	for _, index := range indexes {
 		line := r.bomLines[index]
 		// Filter by FindNumber and serial effectivity
-		if line.FindNumber == findNumber && r.serialComp.IsSerialInRange(targetSerial, line.Effectivity) {
+		if line.FindNumber == findNumber &&
+			r.serialComp.IsSerialInRange(targetSerial, line.Effectivity) {
 			alternates = append(alternates, &line)
 		}
 	}

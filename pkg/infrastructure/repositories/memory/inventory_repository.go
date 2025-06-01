@@ -34,7 +34,9 @@ func (r *InventoryRepository) LoadInventoryLots(lots []*entities.InventoryLot) e
 }
 
 // LoadSerializedInventory loads serialized inventory into the repository
-func (r *InventoryRepository) LoadSerializedInventory(inventory []*entities.SerializedInventory) error {
+func (r *InventoryRepository) LoadSerializedInventory(
+	inventory []*entities.SerializedInventory,
+) error {
 	for _, inv := range inventory {
 		r.AddSerializedInventory(*inv)
 	}
@@ -52,13 +54,17 @@ func (r *InventoryRepository) AddSerializedInventory(inv entities.SerializedInve
 }
 
 // GetInventoryLots returns available lot inventory for a part at a location
-func (r *InventoryRepository) GetInventoryLots(partNumber entities.PartNumber, location string) ([]*entities.InventoryLot, error) {
+func (r *InventoryRepository) GetInventoryLots(
+	partNumber entities.PartNumber,
+	location string,
+) ([]*entities.InventoryLot, error) {
 	var availableLots []*entities.InventoryLot
 
 	// Filter and sort lot inventory by receipt date (FIFO)
 	for i := range r.lotInventory {
 		lot := &r.lotInventory[i]
-		if lot.PartNumber == partNumber && lot.Location == location && lot.Status == entities.Available {
+		if lot.PartNumber == partNumber && lot.Location == location &&
+			lot.Status == entities.Available {
 			availableLots = append(availableLots, lot)
 		}
 	}
@@ -70,13 +76,17 @@ func (r *InventoryRepository) GetInventoryLots(partNumber entities.PartNumber, l
 }
 
 // GetSerializedInventory returns available serialized inventory for a part at a location
-func (r *InventoryRepository) GetSerializedInventory(partNumber entities.PartNumber, location string) ([]*entities.SerializedInventory, error) {
+func (r *InventoryRepository) GetSerializedInventory(
+	partNumber entities.PartNumber,
+	location string,
+) ([]*entities.SerializedInventory, error) {
 	var availableSerials []*entities.SerializedInventory
 
 	// Filter and sort serialized inventory by receipt date (FIFO)
 	for i := range r.serializedInventory {
 		inv := &r.serializedInventory[i]
-		if inv.PartNumber == partNumber && inv.Location == location && inv.Status == entities.Available {
+		if inv.PartNumber == partNumber && inv.Location == location &&
+			inv.Status == entities.Available {
 			availableSerials = append(availableSerials, inv)
 		}
 	}
@@ -106,7 +116,11 @@ func (r *InventoryRepository) GetAllSerializedInventory() ([]*entities.Serialize
 }
 
 // AllocateInventory allocates inventory using FIFO allocation strategy
-func (r *InventoryRepository) AllocateInventory(partNumber entities.PartNumber, location string, quantity entities.Quantity) (*entities.AllocationResult, error) {
+func (r *InventoryRepository) AllocateInventory(
+	partNumber entities.PartNumber,
+	location string,
+	quantity entities.Quantity,
+) (*entities.AllocationResult, error) {
 	result := &entities.AllocationResult{
 		PartNumber:      partNumber,
 		Location:        location,
@@ -180,7 +194,10 @@ func (r *InventoryRepository) AllocateInventory(partNumber entities.PartNumber, 
 }
 
 // GetInventoryByLot returns inventory for a specific lot
-func (r *InventoryRepository) GetInventoryByLot(partNumber entities.PartNumber, lotNumber string) (*entities.InventoryLot, error) {
+func (r *InventoryRepository) GetInventoryByLot(
+	partNumber entities.PartNumber,
+	lotNumber string,
+) (*entities.InventoryLot, error) {
 	for i := range r.lotInventory {
 		lot := &r.lotInventory[i]
 		if lot.PartNumber == partNumber && lot.LotNumber == lotNumber {
@@ -191,7 +208,10 @@ func (r *InventoryRepository) GetInventoryByLot(partNumber entities.PartNumber, 
 }
 
 // GetInventoryBySerial returns inventory for a specific serial number
-func (r *InventoryRepository) GetInventoryBySerial(partNumber entities.PartNumber, serialNumber string) (*entities.SerializedInventory, error) {
+func (r *InventoryRepository) GetInventoryBySerial(
+	partNumber entities.PartNumber,
+	serialNumber string,
+) (*entities.SerializedInventory, error) {
 	for i := range r.serializedInventory {
 		inv := &r.serializedInventory[i]
 		if inv.PartNumber == partNumber && inv.SerialNumber == serialNumber {
@@ -214,7 +234,10 @@ func (r *InventoryRepository) SaveSerializedInventory(inv *entities.SerializedIn
 }
 
 // GetAvailableQuantity returns the total available quantity for a part at a location
-func (r *InventoryRepository) GetAvailableQuantity(partNumber entities.PartNumber, location string) (entities.Quantity, error) {
+func (r *InventoryRepository) GetAvailableQuantity(
+	partNumber entities.PartNumber,
+	location string,
+) (entities.Quantity, error) {
 	var totalQty entities.Quantity = 0
 
 	// Add lot inventory quantities
@@ -239,7 +262,12 @@ func (r *InventoryRepository) GetAvailableQuantity(partNumber entities.PartNumbe
 }
 
 // UpdateInventoryStatus updates the status of inventory
-func (r *InventoryRepository) UpdateInventoryStatus(partNumber entities.PartNumber, lotNumber string, location string, status entities.InventoryStatus) error {
+func (r *InventoryRepository) UpdateInventoryStatus(
+	partNumber entities.PartNumber,
+	lotNumber string,
+	location string,
+	status entities.InventoryStatus,
+) error {
 	for i := range r.lotInventory {
 		lot := &r.lotInventory[i]
 		if lot.PartNumber == partNumber && lot.LotNumber == lotNumber && lot.Location == location {

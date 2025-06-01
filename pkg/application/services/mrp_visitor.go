@@ -27,7 +27,10 @@ func NewMRPVisitor(demandTrace string, needDate time.Time) *MRPVisitor {
 }
 
 // VisitNode creates a gross requirement for this node
-func (v *MRPVisitor) VisitNode(ctx context.Context, nodeCtx BOMNodeContext) (interface{}, bool, error) {
+func (v *MRPVisitor) VisitNode(
+	ctx context.Context,
+	nodeCtx BOMNodeContext,
+) (interface{}, bool, error) {
 	// Create requirement for this part itself
 	req := &entities.GrossRequirement{
 		PartNumber:   nodeCtx.PartNumber,
@@ -47,7 +50,12 @@ func (v *MRPVisitor) VisitNode(ctx context.Context, nodeCtx BOMNodeContext) (int
 }
 
 // ProcessChildren combines this node's requirement with child requirements
-func (v *MRPVisitor) ProcessChildren(ctx context.Context, nodeCtx BOMNodeContext, nodeData interface{}, childResults []interface{}) (interface{}, error) {
+func (v *MRPVisitor) ProcessChildren(
+	ctx context.Context,
+	nodeCtx BOMNodeContext,
+	nodeData interface{},
+	childResults []interface{},
+) (interface{}, error) {
 	mrpNodeData := nodeData.(*MRPNodeData)
 
 	// Start with this node's requirement

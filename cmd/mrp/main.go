@@ -12,7 +12,11 @@ import (
 func main() {
 	// Command line flags
 	var (
-		scenarioDir   = flag.String("scenario", "", "Path to scenario directory containing CSV files")
+		scenarioDir = flag.String(
+			"scenario",
+			"",
+			"Path to scenario directory containing CSV files",
+		)
 		bomFile       = flag.String("bom", "", "Path to BOM CSV file")
 		itemsFile     = flag.String("items", "", "Path to items CSV file")
 		inventoryFile = flag.String("inventory", "", "Path to inventory CSV file")

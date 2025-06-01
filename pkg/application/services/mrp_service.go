@@ -73,7 +73,10 @@ func NewMRPServiceWithConfig(
 }
 
 // ExplodeDemand performs complete MRP explosion for the given demands
-func (s *MRPService) ExplodeDemand(ctx context.Context, demands []*entities.DemandRequirement) (*dto.MRPResult, error) {
+func (s *MRPService) ExplodeDemand(
+	ctx context.Context,
+	demands []*entities.DemandRequirement,
+) (*dto.MRPResult, error) {
 	// Set GC pacing for large operations
 	var oldGCPercent int
 	if s.config.EnableGCPacing && len(demands) > 100 {
@@ -135,13 +138,23 @@ func (s *MRPService) ExplodeDemand(ctx context.Context, demands []*entities.Dema
 }
 
 // explodeRequirements recursively explodes a part's BOM with memoization using BOMTraverser
-func (s *MRPService) explodeRequirements(ctx context.Context, pn entities.PartNumber, targetSerial string,
-	needDate time.Time, demandTrace string, location string, quantity entities.Quantity) ([]*entities.GrossRequirement, error) {
+func (s *MRPService) explodeRequirements(
+	ctx context.Context,
+	pn entities.PartNumber,
+	targetSerial string,
+	needDate time.Time,
+	demandTrace string,
+	location string,
+	quantity entities.Quantity,
+) ([]*entities.GrossRequirement, error) {
 
 	// Create cache key for memoization
 	cacheKey := dto.ExplosionCacheKey{
-		PartNumber:        pn,
-		SerialEffectivity: entities.SerialEffectivity{FromSerial: targetSerial, ToSerial: targetSerial},
+		PartNumber: pn,
+		SerialEffectivity: entities.SerialEffectivity{
+			FromSerial: targetSerial,
+			ToSerial:   targetSerial,
+		},
 	}
 
 	// Check cache first
@@ -209,7 +222,10 @@ func (s *MRPService) explodeRequirements(ctx context.Context, pn entities.PartNu
 }
 
 // allocateInventory allocates available inventory against gross requirements
-func (s *MRPService) allocateInventory(ctx context.Context, grossReqs []*entities.GrossRequirement) ([]entities.AllocationResult, []*entities.NetRequirement, error) {
+func (s *MRPService) allocateInventory(
+	ctx context.Context,
+	grossReqs []*entities.GrossRequirement,
+) ([]entities.AllocationResult, []*entities.NetRequirement, error) {
 	var allocations []entities.AllocationResult
 	var netRequirements []*entities.NetRequirement
 
@@ -233,9 +249,17 @@ func (s *MRPService) allocateInventory(ctx context.Context, grossReqs []*entitie
 		}
 
 		// Try to allocate inventory
-		allocation, err := s.inventoryRepo.AllocateInventory(firstReq.PartNumber, firstReq.Location, totalQty)
+		allocation, err := s.inventoryRepo.AllocateInventory(
+			firstReq.PartNumber,
+			firstReq.Location,
+			totalQty,
+		)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to allocate inventory for %s: %w", firstReq.PartNumber, err)
+			return nil, nil, fmt.Errorf(
+				"failed to allocate inventory for %s: %w",
+				firstReq.PartNumber,
+				err,
+			)
 		}
 
 		allocations = append(allocations, *allocation)
@@ -274,7 +298,9 @@ func (s *MRPService) allocateInventory(ctx context.Context, grossReqs []*entitie
 }
 
 // createPlannedOrders generates planned orders for net requirements
-func (s *MRPService) createPlannedOrders(netReqs []*entities.NetRequirement) ([]entities.PlannedOrder, error) {
+func (s *MRPService) createPlannedOrders(
+	netReqs []*entities.NetRequirement,
+) ([]entities.PlannedOrder, error) {
 	var orders []entities.PlannedOrder
 
 	for _, netReq := range netReqs {
@@ -283,9 +309,22 @@ func (s *MRPService) createPlannedOrders(netReqs []*entities.NetRequirement) ([]
 		if err != nil {
 			// Create order with default values if item not found
 			startDate := netReq.NeedDate.Add(-7 * 24 * time.Hour) // Default 7 day lead time
-			order, createErr := entities.NewPlannedOrder(netReq.PartNumber, netReq.Quantity, startDate, netReq.NeedDate, netReq.DemandTrace, netReq.Location, entities.Make, netReq.TargetSerial)
+			order, createErr := entities.NewPlannedOrder(
+				netReq.PartNumber,
+				netReq.Quantity,
+				startDate,
+				netReq.NeedDate,
+				netReq.DemandTrace,
+				netReq.Location,
+				entities.Make,
+				netReq.TargetSerial,
+			)
 			if createErr != nil {
-				return nil, fmt.Errorf("failed to create planned order for %s: %w", netReq.PartNumber, createErr)
+				return nil, fmt.Errorf(
+					"failed to create planned order for %s: %w",
+					netReq.PartNumber,
+					createErr,
+				)
 			}
 			orders = append(orders, *order)
 			continue
@@ -301,9 +340,22 @@ func (s *MRPService) createPlannedOrders(netReqs []*entities.NetRequirement) ([]
 		}
 
 		startDate := netReq.NeedDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour)
-		order, err := entities.NewPlannedOrder(netReq.PartNumber, orderQty, startDate, netReq.NeedDate, netReq.DemandTrace, netReq.Location, orderType, netReq.TargetSerial)
+		order, err := entities.NewPlannedOrder(
+			netReq.PartNumber,
+			orderQty,
+			startDate,
+			netReq.NeedDate,
+			netReq.DemandTrace,
+			netReq.Location,
+			orderType,
+			netReq.TargetSerial,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create planned order for %s: %w", netReq.PartNumber, err)
+			return nil, fmt.Errorf(
+				"failed to create planned order for %s: %w",
+				netReq.PartNumber,
+				err,
+			)
 		}
 
 		orders = append(orders, *order)
@@ -313,7 +365,10 @@ func (s *MRPService) createPlannedOrders(netReqs []*entities.NetRequirement) ([]
 }
 
 // applyLotSizing applies lot sizing rules to determine order quantity
-func (s *MRPService) applyLotSizing(netQty entities.Quantity, item *entities.Item) entities.Quantity {
+func (s *MRPService) applyLotSizing(
+	netQty entities.Quantity,
+	item *entities.Item,
+) entities.Quantity {
 	switch item.LotSizeRule {
 	case entities.LotForLot:
 		return netQty
@@ -335,7 +390,10 @@ func (s *MRPService) applyLotSizing(netQty entities.Quantity, item *entities.Ite
 }
 
 // identifyShortages identifies unfulfilled demand
-func (s *MRPService) identifyShortages(netReqs []*entities.NetRequirement, orders []entities.PlannedOrder) []entities.Shortage {
+func (s *MRPService) identifyShortages(
+	netReqs []*entities.NetRequirement,
+	orders []entities.PlannedOrder,
+) []entities.Shortage {
 	var shortages []entities.Shortage
 
 	// Create map of planned orders by part/location for quick lookup

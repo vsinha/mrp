@@ -38,16 +38,33 @@ func (l *Loader) LoadItems(filename string) ([]*entities.Item, error) {
 	}
 
 	// Validate header
-	expectedHeader := []string{"part_number", "description", "lead_time_days", "lot_size_rule", "min_order_qty", "safety_stock", "unit_of_measure"}
+	expectedHeader := []string{
+		"part_number",
+		"description",
+		"lead_time_days",
+		"lot_size_rule",
+		"min_order_qty",
+		"safety_stock",
+		"unit_of_measure",
+	}
 	header := records[0]
 	if !validateHeader(header, expectedHeader) {
-		return nil, fmt.Errorf("items CSV header mismatch. Expected: %v, Got: %v", expectedHeader, header)
+		return nil, fmt.Errorf(
+			"items CSV header mismatch. Expected: %v, Got: %v",
+			expectedHeader,
+			header,
+		)
 	}
 
 	var items []*entities.Item
 	for i, record := range records[1:] {
 		if len(record) != len(expectedHeader) {
-			return nil, fmt.Errorf("items CSV row %d: expected %d columns, got %d", i+2, len(expectedHeader), len(record))
+			return nil, fmt.Errorf(
+				"items CSV row %d: expected %d columns, got %d",
+				i+2,
+				len(expectedHeader),
+				len(record),
+			)
 		}
 
 		item, err := parseItem(record)
@@ -80,8 +97,23 @@ func (l *Loader) LoadBOM(filename string) ([]*entities.BOMLine, error) {
 	}
 
 	// Validate header - support both old format (without priority) and new format (with priority)
-	expectedHeaderOld := []string{"parent_pn", "child_pn", "qty_per", "find_number", "from_serial", "to_serial"}
-	expectedHeaderNew := []string{"parent_pn", "child_pn", "qty_per", "find_number", "from_serial", "to_serial", "priority"}
+	expectedHeaderOld := []string{
+		"parent_pn",
+		"child_pn",
+		"qty_per",
+		"find_number",
+		"from_serial",
+		"to_serial",
+	}
+	expectedHeaderNew := []string{
+		"parent_pn",
+		"child_pn",
+		"qty_per",
+		"find_number",
+		"from_serial",
+		"to_serial",
+		"priority",
+	}
 	header := records[0]
 
 	var hasPriority bool
@@ -101,7 +133,12 @@ func (l *Loader) LoadBOM(filename string) ([]*entities.BOMLine, error) {
 		}
 
 		if len(record) != expectedCols {
-			return nil, fmt.Errorf("BOM CSV row %d: expected %d columns, got %d", i+2, expectedCols, len(record))
+			return nil, fmt.Errorf(
+				"BOM CSV row %d: expected %d columns, got %d",
+				i+2,
+				expectedCols,
+				len(record),
+			)
 		}
 
 		bomLine, err := parseBOMLineWithPriority(record, hasPriority)
@@ -116,7 +153,9 @@ func (l *Loader) LoadBOM(filename string) ([]*entities.BOMLine, error) {
 }
 
 // LoadInventory loads inventory from a CSV file
-func (l *Loader) LoadInventory(filename string) ([]*entities.InventoryLot, []*entities.SerializedInventory, error) {
+func (l *Loader) LoadInventory(
+	filename string,
+) ([]*entities.InventoryLot, []*entities.SerializedInventory, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open inventory file %s: %w", filename, err)
@@ -134,10 +173,22 @@ func (l *Loader) LoadInventory(filename string) ([]*entities.InventoryLot, []*en
 	}
 
 	// Validate header
-	expectedHeader := []string{"part_number", "type", "identifier", "location", "quantity", "receipt_date", "status"}
+	expectedHeader := []string{
+		"part_number",
+		"type",
+		"identifier",
+		"location",
+		"quantity",
+		"receipt_date",
+		"status",
+	}
 	header := records[0]
 	if !validateHeader(header, expectedHeader) {
-		return nil, nil, fmt.Errorf("inventory CSV header mismatch. Expected: %v, Got: %v", expectedHeader, header)
+		return nil, nil, fmt.Errorf(
+			"inventory CSV header mismatch. Expected: %v, Got: %v",
+			expectedHeader,
+			header,
+		)
 	}
 
 	var lotInventory []*entities.InventoryLot
@@ -145,7 +196,12 @@ func (l *Loader) LoadInventory(filename string) ([]*entities.InventoryLot, []*en
 
 	for i, record := range records[1:] {
 		if len(record) != len(expectedHeader) {
-			return nil, nil, fmt.Errorf("inventory CSV row %d: expected %d columns, got %d", i+2, len(expectedHeader), len(record))
+			return nil, nil, fmt.Errorf(
+				"inventory CSV row %d: expected %d columns, got %d",
+				i+2,
+				len(expectedHeader),
+				len(record),
+			)
 		}
 
 		partNumber := entities.PartNumber(record[0])
@@ -159,7 +215,11 @@ func (l *Loader) LoadInventory(filename string) ([]*entities.InventoryLot, []*en
 		// Parse common fields
 		receiptDate, err := time.Parse("2006-01-02", receiptDateStr)
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid receipt_date format in row %d: %s (expected YYYY-MM-DD)", i+2, receiptDateStr)
+			return nil, nil, fmt.Errorf(
+				"invalid receipt_date format in row %d: %s (expected YYYY-MM-DD)",
+				i+2,
+				receiptDateStr,
+			)
 		}
 
 		status, err := parseInventoryStatus(statusStr)
@@ -174,7 +234,14 @@ func (l *Loader) LoadInventory(filename string) ([]*entities.InventoryLot, []*en
 				return nil, nil, fmt.Errorf("invalid quantity in row %d: %s", i+2, quantityStr)
 			}
 
-			lot, err := entities.NewInventoryLot(partNumber, identifier, location, entities.Quantity(quantity), receiptDate, status)
+			lot, err := entities.NewInventoryLot(
+				partNumber,
+				identifier,
+				location,
+				entities.Quantity(quantity),
+				receiptDate,
+				status,
+			)
 			if err != nil {
 				return nil, nil, fmt.Errorf("invalid inventory lot in row %d: %w", i+2, err)
 			}
@@ -182,14 +249,24 @@ func (l *Loader) LoadInventory(filename string) ([]*entities.InventoryLot, []*en
 
 		case "serial":
 			// For serialized inventory, quantity should be 1 (ignore CSV value)
-			serial, err := entities.NewSerializedInventory(partNumber, identifier, location, status, receiptDate)
+			serial, err := entities.NewSerializedInventory(
+				partNumber,
+				identifier,
+				location,
+				status,
+				receiptDate,
+			)
 			if err != nil {
 				return nil, nil, fmt.Errorf("invalid serialized inventory in row %d: %w", i+2, err)
 			}
 			serialInventory = append(serialInventory, serial)
 
 		default:
-			return nil, nil, fmt.Errorf("invalid inventory type in row %d: %s (expected 'lot' or 'serial')", i+2, invType)
+			return nil, nil, fmt.Errorf(
+				"invalid inventory type in row %d: %s (expected 'lot' or 'serial')",
+				i+2,
+				invType,
+			)
 		}
 	}
 
@@ -215,16 +292,32 @@ func (l *Loader) LoadDemands(filename string) ([]*entities.DemandRequirement, er
 	}
 
 	// Validate header
-	expectedHeader := []string{"part_number", "quantity", "need_date", "demand_source", "location", "target_serial"}
+	expectedHeader := []string{
+		"part_number",
+		"quantity",
+		"need_date",
+		"demand_source",
+		"location",
+		"target_serial",
+	}
 	header := records[0]
 	if !validateHeader(header, expectedHeader) {
-		return nil, fmt.Errorf("demands CSV header mismatch. Expected: %v, Got: %v", expectedHeader, header)
+		return nil, fmt.Errorf(
+			"demands CSV header mismatch. Expected: %v, Got: %v",
+			expectedHeader,
+			header,
+		)
 	}
 
 	var demands []*entities.DemandRequirement
 	for i, record := range records[1:] {
 		if len(record) != len(expectedHeader) {
-			return nil, fmt.Errorf("demands CSV row %d: expected %d columns, got %d", i+2, len(expectedHeader), len(record))
+			return nil, fmt.Errorf(
+				"demands CSV row %d: expected %d columns, got %d",
+				i+2,
+				len(expectedHeader),
+				len(record),
+			)
 		}
 
 		demand, err := parseDemand(record)
@@ -280,7 +373,15 @@ func parseItem(record []string) (entities.Item, error) {
 
 	unitOfMeasure := record[6]
 
-	item, err := entities.NewItem(partNumber, description, leadTimeDays, lotSizeRule, entities.Quantity(minOrderQty), entities.Quantity(safetyStock), unitOfMeasure)
+	item, err := entities.NewItem(
+		partNumber,
+		description,
+		leadTimeDays,
+		lotSizeRule,
+		entities.Quantity(minOrderQty),
+		entities.Quantity(safetyStock),
+		unitOfMeasure,
+	)
 	if err != nil {
 		return entities.Item{}, fmt.Errorf("invalid item: %w", err)
 	}
@@ -309,7 +410,14 @@ func parseBOMLine(record []string) (entities.BOMLine, error) {
 		return entities.BOMLine{}, fmt.Errorf("invalid serial effectivity: %w", err)
 	}
 
-	bomLine, err := entities.NewBOMLine(parentPN, childPN, entities.Quantity(qtyPer), findNumber, *effectivity, 0)
+	bomLine, err := entities.NewBOMLine(
+		parentPN,
+		childPN,
+		entities.Quantity(qtyPer),
+		findNumber,
+		*effectivity,
+		0,
+	)
 	if err != nil {
 		return entities.BOMLine{}, fmt.Errorf("invalid BOM line: %w", err)
 	}
@@ -347,7 +455,14 @@ func parseBOMLineWithPriority(record []string, hasPriority bool) (entities.BOMLi
 		}
 	}
 
-	bomLine, err := entities.NewBOMLine(parentPN, childPN, entities.Quantity(qtyPer), findNumber, *effectivity, priority)
+	bomLine, err := entities.NewBOMLine(
+		parentPN,
+		childPN,
+		entities.Quantity(qtyPer),
+		findNumber,
+		*effectivity,
+		priority,
+	)
 	if err != nil {
 		return entities.BOMLine{}, fmt.Errorf("invalid BOM line: %w", err)
 	}
@@ -364,7 +479,10 @@ func parseDemand(record []string) (entities.DemandRequirement, error) {
 
 	needDate, err := time.Parse("2006-01-02", record[2])
 	if err != nil {
-		return entities.DemandRequirement{}, fmt.Errorf("invalid need_date format: %s (expected YYYY-MM-DD)", record[2])
+		return entities.DemandRequirement{}, fmt.Errorf(
+			"invalid need_date format: %s (expected YYYY-MM-DD)",
+			record[2],
+		)
 	}
 
 	demandSource := record[3]
@@ -390,7 +508,10 @@ func parseLotSizeRule(s string) (entities.LotSizeRule, error) {
 	case "standardpack":
 		return entities.StandardPack, nil
 	default:
-		return entities.LotForLot, fmt.Errorf("invalid lot_size_rule: %s (expected: LotForLot, MinimumQty, or StandardPack)", s)
+		return entities.LotForLot, fmt.Errorf(
+			"invalid lot_size_rule: %s (expected: LotForLot, MinimumQty, or StandardPack)",
+			s,
+		)
 	}
 }
 
@@ -403,6 +524,9 @@ func parseInventoryStatus(s string) (entities.InventoryStatus, error) {
 	case "quarantine":
 		return entities.Quarantine, nil
 	default:
-		return entities.Available, fmt.Errorf("invalid status: %s (expected: Available, Allocated, or Quarantine)", s)
+		return entities.Available, fmt.Errorf(
+			"invalid status: %s (expected: Available, Allocated, or Quarantine)",
+			s,
+		)
 	}
 }

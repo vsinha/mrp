@@ -51,7 +51,13 @@ type BOMLine struct {
 }
 
 // NewBOMLine creates a validated BOMLine
-func NewBOMLine(parentPN, childPN PartNumber, qtyPer Quantity, findNumber int, effectivity SerialEffectivity, priority int) (*BOMLine, error) {
+func NewBOMLine(
+	parentPN, childPN PartNumber,
+	qtyPer Quantity,
+	findNumber int,
+	effectivity SerialEffectivity,
+	priority int,
+) (*BOMLine, error) {
 	if string(parentPN) == "" {
 		return nil, fmt.Errorf("parent part number cannot be empty")
 	}

@@ -21,7 +21,10 @@ type CriticalPathNodeData struct {
 }
 
 // NewCriticalPathVisitor creates a new critical path visitor
-func NewCriticalPathVisitor(inventoryRepo repositories.InventoryRepository, serialComp *services.SerialComparator) *CriticalPathVisitor {
+func NewCriticalPathVisitor(
+	inventoryRepo repositories.InventoryRepository,
+	serialComp *services.SerialComparator,
+) *CriticalPathVisitor {
 	return &CriticalPathVisitor{
 		inventoryRepo: inventoryRepo,
 		serialComp:    serialComp,
@@ -29,7 +32,10 @@ func NewCriticalPathVisitor(inventoryRepo repositories.InventoryRepository, seri
 }
 
 // VisitNode creates a critical path node for this part
-func (v *CriticalPathVisitor) VisitNode(ctx context.Context, nodeCtx BOMNodeContext) (interface{}, bool, error) {
+func (v *CriticalPathVisitor) VisitNode(
+	ctx context.Context,
+	nodeCtx BOMNodeContext,
+) (interface{}, bool, error) {
 	var hasInventory bool
 	var inventoryQty entities.Quantity
 	var effectiveLeadTime int
@@ -81,7 +87,12 @@ func (v *CriticalPathVisitor) VisitNode(ctx context.Context, nodeCtx BOMNodeCont
 }
 
 // ProcessChildren creates critical paths by combining this node with child paths
-func (v *CriticalPathVisitor) ProcessChildren(ctx context.Context, nodeCtx BOMNodeContext, nodeData interface{}, childResults []interface{}) (interface{}, error) {
+func (v *CriticalPathVisitor) ProcessChildren(
+	ctx context.Context,
+	nodeCtx BOMNodeContext,
+	nodeData interface{},
+	childResults []interface{},
+) (interface{}, error) {
 	criticalPathNodeData := nodeData.(*CriticalPathNodeData)
 	node := criticalPathNodeData.Node
 	effectiveLeadTime := criticalPathNodeData.EffectiveLeadTime
@@ -117,7 +128,10 @@ func (v *CriticalPathVisitor) ProcessChildren(ctx context.Context, nodeCtx BOMNo
 
 		// Determine bottleneck (part with longest individual lead time in path)
 		bottleneck := node.PartNumber
-		if nodeCtx.Item.LeadTimeDays < v.getLeadTimeForPart(childPath.BottleneckPart, childPath.PathDetails) {
+		if nodeCtx.Item.LeadTimeDays < v.getLeadTimeForPart(
+			childPath.BottleneckPart,
+			childPath.PathDetails,
+		) {
 			bottleneck = childPath.BottleneckPart
 		}
 
@@ -138,7 +152,13 @@ func (v *CriticalPathVisitor) ProcessChildren(ctx context.Context, nodeCtx BOMNo
 }
 
 // checkInventoryAvailability checks if inventory is available and calculates effective lead time
-func (v *CriticalPathVisitor) checkInventoryAvailability(ctx context.Context, partNumber entities.PartNumber, location string, requiredQty entities.Quantity, baseLeadTime int) (bool, entities.Quantity, int) {
+func (v *CriticalPathVisitor) checkInventoryAvailability(
+	ctx context.Context,
+	partNumber entities.PartNumber,
+	location string,
+	requiredQty entities.Quantity,
+	baseLeadTime int,
+) (bool, entities.Quantity, int) {
 	// Get available inventory
 	lotInventory, err := v.inventoryRepo.GetInventoryLots(partNumber, location)
 	if err != nil {
@@ -188,7 +208,10 @@ func (v *CriticalPathVisitor) checkInventoryAvailability(ctx context.Context, pa
 }
 
 // getLeadTimeForPart finds the lead time for a specific part in the path details
-func (v *CriticalPathVisitor) getLeadTimeForPart(partNumber entities.PartNumber, pathDetails []entities.CriticalPathNode) int {
+func (v *CriticalPathVisitor) getLeadTimeForPart(
+	partNumber entities.PartNumber,
+	pathDetails []entities.CriticalPathNode,
+) int {
 	for _, node := range pathDetails {
 		if node.PartNumber == partNumber {
 			return node.LeadTimeDays

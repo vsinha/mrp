@@ -39,7 +39,13 @@ type InventoryLot struct {
 }
 
 // NewInventoryLot creates a validated InventoryLot
-func NewInventoryLot(partNumber PartNumber, lotNumber, location string, quantity Quantity, receiptDate time.Time, status InventoryStatus) (*InventoryLot, error) {
+func NewInventoryLot(
+	partNumber PartNumber,
+	lotNumber, location string,
+	quantity Quantity,
+	receiptDate time.Time,
+	status InventoryStatus,
+) (*InventoryLot, error) {
 	if string(partNumber) == "" {
 		return nil, fmt.Errorf("part number cannot be empty")
 	}
@@ -73,7 +79,12 @@ type SerializedInventory struct {
 }
 
 // NewSerializedInventory creates a validated SerializedInventory
-func NewSerializedInventory(partNumber PartNumber, serialNumber, location string, status InventoryStatus, receiptDate time.Time) (*SerializedInventory, error) {
+func NewSerializedInventory(
+	partNumber PartNumber,
+	serialNumber, location string,
+	status InventoryStatus,
+	receiptDate time.Time,
+) (*SerializedInventory, error) {
 	if string(partNumber) == "" {
 		return nil, fmt.Errorf("part number cannot be empty")
 	}

@@ -49,8 +49,15 @@ func generateTextOutput(result *dto.MRPResult, config Config) error {
 		fmt.Printf("📋 Planned Orders:\n")
 		fmt.Printf("%-15s %-8s %-12s %-12s %-15s %-10s\n",
 			"Part Number", "Qty", "Start Date", "Due Date", "Order Type", "Location")
-		fmt.Printf("%-15s %-8s %-12s %-12s %-15s %-10s\n",
-			"---------------", "--------", "------------", "------------", "---------------", "----------")
+		fmt.Printf(
+			"%-15s %-8s %-12s %-12s %-15s %-10s\n",
+			"---------------",
+			"--------",
+			"------------",
+			"------------",
+			"---------------",
+			"----------",
+		)
 
 		for _, order := range result.PlannedOrders {
 			fmt.Printf("%-15s %-8d %-12s %-12s %-15s %-10s\n",

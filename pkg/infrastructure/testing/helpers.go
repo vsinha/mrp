@@ -8,8 +8,22 @@ import (
 )
 
 // mustCreateItem is a helper for tests - panics on validation error
-func mustCreateItem(partNumber, description string, leadTime int, lotRule entities.LotSizeRule, minOrderQty, safetyStock entities.Quantity, uom string) *entities.Item {
-	item, err := entities.NewItem(entities.PartNumber(partNumber), description, leadTime, lotRule, minOrderQty, safetyStock, uom)
+func mustCreateItem(
+	partNumber, description string,
+	leadTime int,
+	lotRule entities.LotSizeRule,
+	minOrderQty, safetyStock entities.Quantity,
+	uom string,
+) *entities.Item {
+	item, err := entities.NewItem(
+		entities.PartNumber(partNumber),
+		description,
+		leadTime,
+		lotRule,
+		minOrderQty,
+		safetyStock,
+		uom,
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -17,12 +31,24 @@ func mustCreateItem(partNumber, description string, leadTime int, lotRule entiti
 }
 
 // mustCreateBOMLine is a helper for tests - panics on validation error
-func mustCreateBOMLine(parentPN, childPN string, qtyPer entities.Quantity, findNumber int, fromSerial, toSerial string) *entities.BOMLine {
+func mustCreateBOMLine(
+	parentPN, childPN string,
+	qtyPer entities.Quantity,
+	findNumber int,
+	fromSerial, toSerial string,
+) *entities.BOMLine {
 	effectivity, err := entities.NewSerialEffectivity(fromSerial, toSerial)
 	if err != nil {
 		panic(err)
 	}
-	bomLine, err := entities.NewBOMLine(entities.PartNumber(parentPN), entities.PartNumber(childPN), qtyPer, findNumber, *effectivity, 0)
+	bomLine, err := entities.NewBOMLine(
+		entities.PartNumber(parentPN),
+		entities.PartNumber(childPN),
+		qtyPer,
+		findNumber,
+		*effectivity,
+		0,
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -30,12 +56,25 @@ func mustCreateBOMLine(parentPN, childPN string, qtyPer entities.Quantity, findN
 }
 
 // mustCreateAlternateBOMLine is a helper for tests with alternate support - panics on validation error
-func mustCreateAlternateBOMLine(parentPN, childPN string, qtyPer entities.Quantity, findNumber int, fromSerial, toSerial string, priority int) *entities.BOMLine {
+func mustCreateAlternateBOMLine(
+	parentPN, childPN string,
+	qtyPer entities.Quantity,
+	findNumber int,
+	fromSerial, toSerial string,
+	priority int,
+) *entities.BOMLine {
 	effectivity, err := entities.NewSerialEffectivity(fromSerial, toSerial)
 	if err != nil {
 		panic(err)
 	}
-	bomLine, err := entities.NewBOMLine(entities.PartNumber(parentPN), entities.PartNumber(childPN), qtyPer, findNumber, *effectivity, priority)
+	bomLine, err := entities.NewBOMLine(
+		entities.PartNumber(parentPN),
+		entities.PartNumber(childPN),
+		qtyPer,
+		findNumber,
+		*effectivity,
+		priority,
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -43,8 +82,20 @@ func mustCreateAlternateBOMLine(parentPN, childPN string, qtyPer entities.Quanti
 }
 
 // mustCreateInventoryLot is a helper for tests - panics on validation error
-func mustCreateInventoryLot(partNumber, lotNumber, location string, quantity entities.Quantity, receiptDate time.Time, status entities.InventoryStatus) *entities.InventoryLot {
-	lot, err := entities.NewInventoryLot(entities.PartNumber(partNumber), lotNumber, location, quantity, receiptDate, status)
+func mustCreateInventoryLot(
+	partNumber, lotNumber, location string,
+	quantity entities.Quantity,
+	receiptDate time.Time,
+	status entities.InventoryStatus,
+) *entities.InventoryLot {
+	lot, err := entities.NewInventoryLot(
+		entities.PartNumber(partNumber),
+		lotNumber,
+		location,
+		quantity,
+		receiptDate,
+		status,
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -60,12 +111,60 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 
 	// Add items
 	items := []*entities.Item{
-		mustCreateItem("SATURN_V", "Saturn V Launch Vehicle", 180, entities.LotForLot, entities.Quantity(1), entities.Quantity(0), "EA"),
-		mustCreateItem("F1_ENGINE", "F-1 Engine Assembly", 120, entities.MinimumQty, entities.Quantity(10), entities.Quantity(2), "EA"),
-		mustCreateItem("J2_ENGINE_V1", "J-2 Engine V1", 90, entities.LotForLot, entities.Quantity(1), entities.Quantity(0), "EA"),
-		mustCreateItem("J2_ENGINE_V2", "J-2 Engine V2", 90, entities.LotForLot, entities.Quantity(1), entities.Quantity(0), "EA"),
-		mustCreateItem("F1_TURBOPUMP_V1", "F-1 Turbopump Assembly V1", 60, entities.LotForLot, entities.Quantity(1), entities.Quantity(0), "EA"),
-		mustCreateItem("F1_TURBOPUMP_V2", "F-1 Turbopump Assembly V2", 60, entities.LotForLot, entities.Quantity(1), entities.Quantity(0), "EA"),
+		mustCreateItem(
+			"SATURN_V",
+			"Saturn V Launch Vehicle",
+			180,
+			entities.LotForLot,
+			entities.Quantity(1),
+			entities.Quantity(0),
+			"EA",
+		),
+		mustCreateItem(
+			"F1_ENGINE",
+			"F-1 Engine Assembly",
+			120,
+			entities.MinimumQty,
+			entities.Quantity(10),
+			entities.Quantity(2),
+			"EA",
+		),
+		mustCreateItem(
+			"J2_ENGINE_V1",
+			"J-2 Engine V1",
+			90,
+			entities.LotForLot,
+			entities.Quantity(1),
+			entities.Quantity(0),
+			"EA",
+		),
+		mustCreateItem(
+			"J2_ENGINE_V2",
+			"J-2 Engine V2",
+			90,
+			entities.LotForLot,
+			entities.Quantity(1),
+			entities.Quantity(0),
+			"EA",
+		),
+		mustCreateItem(
+			"F1_TURBOPUMP_V1",
+			"F-1 Turbopump Assembly V1",
+			60,
+			entities.LotForLot,
+			entities.Quantity(1),
+			entities.Quantity(0),
+			"EA",
+		),
+		mustCreateItem(
+			"F1_TURBOPUMP_V2",
+			"F-1 Turbopump Assembly V2",
+			60,
+			entities.LotForLot,
+			entities.Quantity(1),
+			entities.Quantity(0),
+			"EA",
+		),
 	}
 
 	for _, item := range items {
@@ -80,7 +179,14 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 		mustCreateBOMLine("SATURN_V", "F1_ENGINE", entities.Quantity(5), 100, "AS501", ""),
 		mustCreateBOMLine("SATURN_V", "J2_ENGINE_V1", entities.Quantity(6), 200, "AS501", "AS506"),
 		mustCreateBOMLine("SATURN_V", "J2_ENGINE_V2", entities.Quantity(6), 200, "AS507", ""),
-		mustCreateBOMLine("F1_ENGINE", "F1_TURBOPUMP_V1", entities.Quantity(1), 300, "AS501", "AS505"),
+		mustCreateBOMLine(
+			"F1_ENGINE",
+			"F1_TURBOPUMP_V1",
+			entities.Quantity(1),
+			300,
+			"AS501",
+			"AS505",
+		),
 		mustCreateBOMLine("F1_ENGINE", "F1_TURBOPUMP_V2", entities.Quantity(1), 300, "AS506", ""),
 	}
 
@@ -95,8 +201,22 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 	baseDate := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
 
 	inventoryLots := []*entities.InventoryLot{
-		mustCreateInventoryLot("F1_ENGINE", "F1_LOT_001", "MICHOUD", entities.Quantity(2), baseDate, entities.Available),
-		mustCreateInventoryLot("F1_ENGINE", "F1_LOT_002", "STENNIS", entities.Quantity(1), baseDate.Add(4*24*time.Hour), entities.Available),
+		mustCreateInventoryLot(
+			"F1_ENGINE",
+			"F1_LOT_001",
+			"MICHOUD",
+			entities.Quantity(2),
+			baseDate,
+			entities.Available,
+		),
+		mustCreateInventoryLot(
+			"F1_ENGINE",
+			"F1_LOT_002",
+			"STENNIS",
+			entities.Quantity(1),
+			baseDate.Add(4*24*time.Hour),
+			entities.Available,
+		),
 	}
 
 	for _, lot := range inventoryLots {

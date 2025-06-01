@@ -22,7 +22,13 @@ func TestMRPService_CriticalPathAnalysis_SimpleCase(t *testing.T) {
 	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService)
 
 	// Analyze critical path for rocket engine
-	analysis, err := orchestrator.AnalyzeCriticalPathForPart(ctx, "ROCKET_ENGINE", "AS507", "KENNEDY", 5)
+	analysis, err := orchestrator.AnalyzeCriticalPathForPart(
+		ctx,
+		"ROCKET_ENGINE",
+		"AS507",
+		"KENNEDY",
+		5,
+	)
 	if err != nil {
 		t.Fatalf("Critical path analysis failed: %v", err)
 	}
@@ -90,7 +96,13 @@ func TestMRPService_CriticalPathAnalysis_WithInventory(t *testing.T) {
 	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService)
 
 	// Analyze critical path
-	analysis, err := orchestrator.AnalyzeCriticalPathForPart(ctx, "ROCKET_ENGINE", "AS507", "KENNEDY", 3)
+	analysis, err := orchestrator.AnalyzeCriticalPathForPart(
+		ctx,
+		"ROCKET_ENGINE",
+		"AS507",
+		"KENNEDY",
+		3,
+	)
 	if err != nil {
 		t.Fatalf("Critical path analysis failed: %v", err)
 	}
@@ -109,8 +121,11 @@ func TestMRPService_CriticalPathAnalysis_WithInventory(t *testing.T) {
 
 			// Effective lead time should be less than or equal to base lead time
 			if node.EffectiveLeadTime > node.LeadTimeDays {
-				t.Errorf("Expected effective lead time (%d) to be less than or equal to base lead time (%d) for part with inventory",
-					node.EffectiveLeadTime, node.LeadTimeDays)
+				t.Errorf(
+					"Expected effective lead time (%d) to be less than or equal to base lead time (%d) for part with inventory",
+					node.EffectiveLeadTime,
+					node.LeadTimeDays,
+				)
 			}
 		}
 	}
@@ -264,7 +279,13 @@ func TestMRPService_CriticalPathAnalysis_MultiplePaths(t *testing.T) {
 	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService)
 
 	// Analyze critical path asking for top 5 paths
-	analysis, err := orchestrator.AnalyzeCriticalPathForPart(ctx, "COMPLEX_ASSEMBLY", "SN001", "FACTORY", 5)
+	analysis, err := orchestrator.AnalyzeCriticalPathForPart(
+		ctx,
+		"COMPLEX_ASSEMBLY",
+		"SN001",
+		"FACTORY",
+		5,
+	)
 	if err != nil {
 		t.Fatalf("Critical path analysis failed: %v", err)
 	}

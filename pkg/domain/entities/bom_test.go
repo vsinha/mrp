@@ -24,7 +24,14 @@ func TestBOMLine_Validation(t *testing.T) {
 	}{
 		{"empty parent", "", "CHILD", 1, 100, "parent part number cannot be empty"},
 		{"empty child", "PARENT", "", 1, 100, "child part number cannot be empty"},
-		{"parent equals child", "SAME_PART", "SAME_PART", 1, 100, "parent and child part numbers cannot be the same: SAME_PART"},
+		{
+			"parent equals child",
+			"SAME_PART",
+			"SAME_PART",
+			1,
+			100,
+			"parent and child part numbers cannot be the same: SAME_PART",
+		},
 		{"zero quantity", "PARENT", "CHILD", 0, 100, "quantity per must be positive, got 0"},
 		{"negative quantity", "PARENT", "CHILD", -1, 100, "quantity per must be positive, got -1"},
 		{"zero find number", "PARENT", "CHILD", 1, 0, "find number must be positive, got 0"},

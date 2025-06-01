@@ -27,7 +27,11 @@ func TestPlanningOrchestrator_AnalyzeCriticalPathWithMRPResults(t *testing.T) {
 	}
 
 	// Run integrated planning (MRP + Critical Path)
-	planningResult, err := orchestrator.RunCompletePlanning(context.Background(), []*entities.DemandRequirement{demand}, 5)
+	planningResult, err := orchestrator.RunCompletePlanning(
+		context.Background(),
+		[]*entities.DemandRequirement{demand},
+		5,
+	)
 	if err != nil {
 		t.Fatalf("Failed to run complete planning: %v", err)
 	}

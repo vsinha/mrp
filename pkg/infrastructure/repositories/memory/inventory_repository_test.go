@@ -132,11 +132,19 @@ func TestInventoryRepository_AllocateInventory(t *testing.T) {
 			}
 
 			if allocation.AllocatedQty != tt.expectedAllocated {
-				t.Errorf("Expected allocated quantity %d, got %d", tt.expectedAllocated, allocation.AllocatedQty)
+				t.Errorf(
+					"Expected allocated quantity %d, got %d",
+					tt.expectedAllocated,
+					allocation.AllocatedQty,
+				)
 			}
 
 			if allocation.RemainingDemand != tt.expectedRemaining {
-				t.Errorf("Expected remaining demand %d, got %d", tt.expectedRemaining, allocation.RemainingDemand)
+				t.Errorf(
+					"Expected remaining demand %d, got %d",
+					tt.expectedRemaining,
+					allocation.RemainingDemand,
+				)
 			}
 
 			if allocation.PartNumber != "TEST_PART" {
@@ -274,7 +282,8 @@ func TestInventoryRepository_UpdateInventoryStatus(t *testing.T) {
 
 	var foundLot *entities.InventoryLot
 	for _, lot := range allLots {
-		if lot.PartNumber == "TEST_PART" && lot.LotNumber == "LOT001" && lot.Location == "WAREHOUSE_A" {
+		if lot.PartNumber == "TEST_PART" && lot.LotNumber == "LOT001" &&
+			lot.Location == "WAREHOUSE_A" {
 			foundLot = lot
 			break
 		}

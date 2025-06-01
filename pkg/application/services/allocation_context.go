@@ -42,7 +42,11 @@ func (am AllocationMap) Get(partNumber entities.PartNumber, location string) *Al
 }
 
 // Set stores allocation context for a part and location
-func (am AllocationMap) Set(partNumber entities.PartNumber, location string, context *AllocationContext) {
+func (am AllocationMap) Set(
+	partNumber entities.PartNumber,
+	location string,
+	context *AllocationContext,
+) {
 	key := am.makeKey(partNumber, location)
 	am[key] = context
 }
@@ -137,8 +141,14 @@ func (am AllocationMap) String() string {
 	result := fmt.Sprintf("AllocationMap{%d entries:\n", len(am))
 	for key, context := range am {
 		if partNumber, location, found := am.parseKey(key); found {
-			result += fmt.Sprintf("  %s@%s: allocated=%d, remaining=%d, hasAllocation=%t\n",
-				partNumber, location, context.AllocatedQty, context.RemainingDemand, context.HasAllocation)
+			result += fmt.Sprintf(
+				"  %s@%s: allocated=%d, remaining=%d, hasAllocation=%t\n",
+				partNumber,
+				location,
+				context.AllocatedQty,
+				context.RemainingDemand,
+				context.HasAllocation,
+			)
 		}
 	}
 	result += "}"

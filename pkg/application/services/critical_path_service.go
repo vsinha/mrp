@@ -38,7 +38,13 @@ func NewCriticalPathService(
 }
 
 // AnalyzeCriticalPath performs critical path analysis for a given part and returns top N paths
-func (cps *CriticalPathService) AnalyzeCriticalPath(ctx context.Context, partNumber entities.PartNumber, targetSerial string, location string, topN int) (*entities.CriticalPathAnalysis, error) {
+func (cps *CriticalPathService) AnalyzeCriticalPath(
+	ctx context.Context,
+	partNumber entities.PartNumber,
+	targetSerial string,
+	location string,
+	topN int,
+) (*entities.CriticalPathAnalysis, error) {
 	// Get all paths through the BOM
 	allPaths, err := cps.findAllPaths(ctx, partNumber, targetSerial, location, 1, 0)
 	if err != nil {
@@ -89,7 +95,14 @@ func (cps *CriticalPathService) AnalyzeCriticalPath(ctx context.Context, partNum
 }
 
 // AnalyzeCriticalPathWithAllocations performs critical path analysis using MRP allocation results
-func (cps *CriticalPathService) AnalyzeCriticalPathWithAllocations(ctx context.Context, partNumber entities.PartNumber, targetSerial string, location string, topN int, allocations []entities.AllocationResult) (*entities.CriticalPathAnalysis, error) {
+func (cps *CriticalPathService) AnalyzeCriticalPathWithAllocations(
+	ctx context.Context,
+	partNumber entities.PartNumber,
+	targetSerial string,
+	location string,
+	topN int,
+	allocations []entities.AllocationResult,
+) (*entities.CriticalPathAnalysis, error) {
 	// Set allocation context in the BOM traverser
 	cps.bomTraverser.SetAllocationContext(allocations)
 	defer cps.bomTraverser.ClearAllocationContext() // Clean up after analysis
@@ -135,10 +148,25 @@ func (cps *CriticalPathService) AnalyzeCriticalPathWithAllocations(ctx context.C
 }
 
 // findAllPaths recursively finds all paths through the BOM structure using BOMTraverser
-func (cps *CriticalPathService) findAllPaths(ctx context.Context, partNumber entities.PartNumber, targetSerial string, location string, quantity entities.Quantity, level int) ([]entities.CriticalPath, error) {
+func (cps *CriticalPathService) findAllPaths(
+	ctx context.Context,
+	partNumber entities.PartNumber,
+	targetSerial string,
+	location string,
+	quantity entities.Quantity,
+	level int,
+) ([]entities.CriticalPath, error) {
 	// Use BOMTraverser with CriticalPathVisitor to perform the traversal
 	visitor := NewCriticalPathVisitor(cps.inventoryRepo, cps.serialComp)
-	result, err := cps.bomTraverser.TraverseBOM(ctx, partNumber, targetSerial, location, quantity, level, visitor)
+	result, err := cps.bomTraverser.TraverseBOM(
+		ctx,
+		partNumber,
+		targetSerial,
+		location,
+		quantity,
+		level,
+		visitor,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to traverse BOM for %s: %w", partNumber, err)
 	}
