@@ -1,0 +1,3 @@
+part_number,type,identifier,location,quantity,receipt_date,status
+VALVE_ASSEMBLY,lot,VALVE_LOT_001,KENNEDY,15,2025-05-01,Available
+BEARING_SET,lot,BEARING_LOT_001,KENNEDY,5,2025-05-01,Available

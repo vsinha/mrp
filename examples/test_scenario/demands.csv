@@ -1,0 +1,2 @@
+part_number,quantity,need_date,demand_source,location,target_serial
+TURBOPUMP_V3,1,2025-12-01,APOLLO_12_MISSION,KENNEDY,AS507
