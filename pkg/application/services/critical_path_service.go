@@ -13,10 +13,11 @@ import (
 
 // CriticalPathService performs critical path analysis on BOM structures
 type CriticalPathService struct {
-	bomRepo       repositories.BOMRepository
-	itemRepo      repositories.ItemRepository
-	inventoryRepo repositories.InventoryRepository
-	serialComp    *services.SerialComparator
+	bomRepo           repositories.BOMRepository
+	itemRepo          repositories.ItemRepository
+	inventoryRepo     repositories.InventoryRepository
+	serialComp        *services.SerialComparator
+	alternateSelector *AlternateSelector
 }
 
 // NewCriticalPathService creates a new critical path service
@@ -26,11 +27,13 @@ func NewCriticalPathService(
 	inventoryRepo repositories.InventoryRepository,
 	serialComp *services.SerialComparator,
 ) *CriticalPathService {
+	alternateSelector := NewAlternateSelector(inventoryRepo, itemRepo)
 	return &CriticalPathService{
-		bomRepo:       bomRepo,
-		itemRepo:      itemRepo,
-		inventoryRepo: inventoryRepo,
-		serialComp:    serialComp,
+		bomRepo:           bomRepo,
+		itemRepo:          itemRepo,
+		inventoryRepo:     inventoryRepo,
+		serialComp:        serialComp,
+		alternateSelector: alternateSelector,
 	}
 }
 
@@ -108,17 +111,32 @@ func (cps *CriticalPathService) findAllPaths(ctx context.Context, partNumber ent
 		EffectiveLeadTime: effectiveLeadTime,
 	}
 
-	// Get effective BOM for this part
-	bomLines, err := cps.bomRepo.GetEffectiveLines(partNumber, targetSerial)
+	// Get alternate groups for this part and select best alternates
+	alternateGroups, err := cps.bomRepo.GetAlternateGroups(partNumber)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get BOM for %s: %w", partNumber, err)
+		return nil, fmt.Errorf("failed to get alternate groups for %s: %w", partNumber, err)
 	}
 
-	// Filter BOM lines by serial effectivity (already done by GetEffectiveLines)
-	effectiveLines := cps.serialComp.ResolveSerialEffectivity(targetSerial, bomLines)
+	var selectedLines []*entities.BOMLine
+
+	// For each FindNumber group, select the best effective alternate
+	for findNumber := range alternateGroups {
+		effectiveAlternates, err := cps.bomRepo.GetEffectiveAlternates(partNumber, findNumber, targetSerial)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get effective alternates for %s find %d: %w", partNumber, findNumber, err)
+		}
+
+		if len(effectiveAlternates) > 0 {
+			// Select the best alternate from effective ones
+			selectedAlternate := cps.alternateSelector.SelectBestAlternate(effectiveAlternates)
+			if selectedAlternate != nil {
+				selectedLines = append(selectedLines, selectedAlternate)
+			}
+		}
+	}
 
 	// If no children (leaf node), return single path
-	if len(effectiveLines) == 0 {
+	if len(selectedLines) == 0 {
 		path := entities.CriticalPath{
 			TotalLeadTime:     item.LeadTimeDays,
 			EffectiveLeadTime: effectiveLeadTime,
@@ -133,7 +151,7 @@ func (cps *CriticalPathService) findAllPaths(ctx context.Context, partNumber ent
 	// Recursively get paths for all children
 	var allChildPaths []entities.CriticalPath
 
-	for _, line := range effectiveLines {
+	for _, line := range selectedLines {
 		childQty := line.QtyPer * quantity
 		childPaths, err := cps.findAllPaths(ctx, line.ChildPN, targetSerial, location, childQty, level+1)
 		if err != nil {

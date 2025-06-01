@@ -22,7 +22,7 @@ func mustCreateBOMLine(parentPN, childPN string, qtyPer entities.Quantity, findN
 	if err != nil {
 		panic(err)
 	}
-	bomLine, err := entities.NewBOMLine(entities.PartNumber(parentPN), entities.PartNumber(childPN), qtyPer, findNumber, *effectivity, "", 0)
+	bomLine, err := entities.NewBOMLine(entities.PartNumber(parentPN), entities.PartNumber(childPN), qtyPer, findNumber, *effectivity, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -30,12 +30,12 @@ func mustCreateBOMLine(parentPN, childPN string, qtyPer entities.Quantity, findN
 }
 
 // mustCreateAlternateBOMLine is a helper for tests with alternate support - panics on validation error
-func mustCreateAlternateBOMLine(parentPN, childPN string, qtyPer entities.Quantity, findNumber int, fromSerial, toSerial, alternateGroup string, priority int) *entities.BOMLine {
+func mustCreateAlternateBOMLine(parentPN, childPN string, qtyPer entities.Quantity, findNumber int, fromSerial, toSerial string, priority int) *entities.BOMLine {
 	effectivity, err := entities.NewSerialEffectivity(fromSerial, toSerial)
 	if err != nil {
 		panic(err)
 	}
-	bomLine, err := entities.NewBOMLine(entities.PartNumber(parentPN), entities.PartNumber(childPN), qtyPer, findNumber, *effectivity, alternateGroup, priority)
+	bomLine, err := entities.NewBOMLine(entities.PartNumber(parentPN), entities.PartNumber(childPN), qtyPer, findNumber, *effectivity, priority)
 	if err != nil {
 		panic(err)
 	}

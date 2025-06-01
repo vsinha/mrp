@@ -5,7 +5,7 @@ import "testing"
 func TestBOMLine_Validation(t *testing.T) {
 	effectivity := SerialEffectivity{FromSerial: "SN001", ToSerial: ""}
 
-	validBOM, err := NewBOMLine("PARENT", "CHILD", 2, 100, effectivity, "", 0)
+	validBOM, err := NewBOMLine("PARENT", "CHILD", 2, 100, effectivity, 0)
 	if err != nil {
 		t.Fatalf("Expected valid BOM creation to succeed: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestBOMLine_Validation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewBOMLine(tc.parentPN, tc.childPN, tc.qtyPer, tc.findNumber, effectivity, "", 0)
+			_, err := NewBOMLine(tc.parentPN, tc.childPN, tc.qtyPer, tc.findNumber, effectivity, 0)
 			if err == nil {
 				t.Fatalf("Expected error for %s, but got none", tc.name)
 			}
@@ -44,7 +44,7 @@ func TestBOMLine_Validation(t *testing.T) {
 	}
 
 	// Test negative priority
-	_, err = NewBOMLine("PARENT", "CHILD", 1, 100, effectivity, "", -1)
+	_, err = NewBOMLine("PARENT", "CHILD", 1, 100, effectivity, -1)
 	if err == nil {
 		t.Fatal("Expected error for negative priority")
 	}
@@ -57,26 +57,26 @@ func TestBOMLine_AlternateFields(t *testing.T) {
 	effectivity := SerialEffectivity{FromSerial: "SN001", ToSerial: ""}
 
 	// Test valid alternate BOM line
-	bomLine, err := NewBOMLine("F1_ENGINE", "F1_TURBOPUMP_V1", 1, 300, effectivity, "TURBOPUMP_ALT", 1)
+	bomLine, err := NewBOMLine("F1_ENGINE", "F1_TURBOPUMP_V1", 1, 300, effectivity, 1)
 	if err != nil {
 		t.Fatalf("Expected valid alternate BOM creation to succeed: %v", err)
 	}
 
-	if bomLine.AlternateGroup != "TURBOPUMP_ALT" {
-		t.Errorf("Expected alternate group 'TURBOPUMP_ALT', got '%s'", bomLine.AlternateGroup)
+	if bomLine.FindNumber != 300 {
+		t.Errorf("Expected find number 300, got %d", bomLine.FindNumber)
 	}
 	if bomLine.Priority != 1 {
 		t.Errorf("Expected priority 1, got %d", bomLine.Priority)
 	}
 
-	// Test empty alternate group (standard BOM line)
-	standardBOM, err := NewBOMLine("PARENT", "CHILD", 1, 100, effectivity, "", 0)
+	// Test standard BOM line (priority 0)
+	standardBOM, err := NewBOMLine("PARENT", "CHILD", 1, 100, effectivity, 0)
 	if err != nil {
 		t.Fatalf("Expected standard BOM creation to succeed: %v", err)
 	}
 
-	if standardBOM.AlternateGroup != "" {
-		t.Errorf("Expected empty alternate group, got '%s'", standardBOM.AlternateGroup)
+	if standardBOM.FindNumber != 100 {
+		t.Errorf("Expected find number 100, got %d", standardBOM.FindNumber)
 	}
 	if standardBOM.Priority != 0 {
 		t.Errorf("Expected priority 0, got %d", standardBOM.Priority)
@@ -119,10 +119,9 @@ func TestBOMAlternatesExample(t *testing.T) {
 		"F1_ENGINE",
 		"F1_TURBOPUMP_V1",
 		1,
-		300,
+		300, // Same FindNumber = alternates
 		SerialEffectivity{FromSerial: "AS501", ToSerial: "AS505"},
-		"F1_TURBOPUMP_ALT", // Alternate group
-		1,                  // Priority 1 (primary)
+		1, // Priority 1 (primary)
 	)
 	if err != nil {
 		t.Fatalf("Failed to create turbopump V1 BOM line: %v", err)
@@ -133,10 +132,9 @@ func TestBOMAlternatesExample(t *testing.T) {
 		"F1_ENGINE",
 		"F1_TURBOPUMP_V2",
 		1,
-		300,
+		300, // Same FindNumber = alternates
 		SerialEffectivity{FromSerial: "AS506", ToSerial: ""},
-		"F1_TURBOPUMP_ALT", // Same alternate group
-		1,                  // Priority 1 (also primary)
+		1, // Priority 1 (also primary)
 	)
 	if err != nil {
 		t.Fatalf("Failed to create turbopump V2 BOM line: %v", err)
@@ -147,10 +145,9 @@ func TestBOMAlternatesExample(t *testing.T) {
 		"F1_ENGINE",
 		"F1_TURBOPUMP_BACKUP",
 		1,
-		300,
+		300, // Same FindNumber = alternates
 		SerialEffectivity{FromSerial: "AS501", ToSerial: ""},
-		"F1_TURBOPUMP_ALT", // Same alternate group
-		2,                  // Priority 2 (backup)
+		2, // Priority 2 (backup)
 	)
 	if err != nil {
 		t.Fatalf("Failed to create backup turbopump BOM line: %v", err)
@@ -159,16 +156,13 @@ func TestBOMAlternatesExample(t *testing.T) {
 	// Verify the BOM lines are configured correctly
 	bomLines := []*BOMLine{turbopumpV1, turbopumpV2, turbopumpBackup}
 
-	// All should have the same parent, find number, and alternate group
+	// All should have the same parent and find number (this groups them as alternates)
 	for _, line := range bomLines {
 		if line.ParentPN != "F1_ENGINE" {
 			t.Errorf("Expected parent F1_ENGINE, got %s", line.ParentPN)
 		}
 		if line.FindNumber != 300 {
 			t.Errorf("Expected find number 300, got %d", line.FindNumber)
-		}
-		if line.AlternateGroup != "F1_TURBOPUMP_ALT" {
-			t.Errorf("Expected alternate group F1_TURBOPUMP_ALT, got %s", line.AlternateGroup)
 		}
 	}
 

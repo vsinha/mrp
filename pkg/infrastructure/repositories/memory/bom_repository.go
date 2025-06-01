@@ -135,6 +135,42 @@ func (r *BOMRepository) SaveItem(item *entities.Item) error {
 	return nil
 }
 
+// GetAlternateGroups returns BOM lines grouped by FindNumber for a parent part
+func (r *BOMRepository) GetAlternateGroups(parentPN entities.PartNumber) (map[int][]*entities.BOMLine, error) {
+	indexes, exists := r.bomIndexes[parentPN]
+	if !exists {
+		return make(map[int][]*entities.BOMLine), nil
+	}
+
+	groups := make(map[int][]*entities.BOMLine)
+	for _, index := range indexes {
+		line := r.bomLines[index]
+		findNumber := line.FindNumber
+		groups[findNumber] = append(groups[findNumber], &line)
+	}
+
+	return groups, nil
+}
+
+// GetEffectiveAlternates returns alternate BOM lines for a specific FindNumber and serial
+func (r *BOMRepository) GetEffectiveAlternates(parentPN entities.PartNumber, findNumber int, targetSerial string) ([]*entities.BOMLine, error) {
+	indexes, exists := r.bomIndexes[parentPN]
+	if !exists {
+		return []*entities.BOMLine{}, nil
+	}
+
+	var alternates []*entities.BOMLine
+	for _, index := range indexes {
+		line := r.bomLines[index]
+		// Filter by FindNumber and serial effectivity
+		if line.FindNumber == findNumber && r.serialComp.IsSerialInRange(targetSerial, line.Effectivity) {
+			alternates = append(alternates, &line)
+		}
+	}
+
+	return alternates, nil
+}
+
 // MemoryStats provides memory usage statistics
 type MemoryStats struct {
 	AllocBytes      uint64

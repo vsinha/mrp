@@ -24,32 +24,34 @@ func NewSerialEffectivity(fromSerial, toSerial string) (*SerialEffectivity, erro
 
 // BOMLine represents a single line in a Bill of Materials
 type BOMLine struct {
-	ParentPN    PartNumber
-	ChildPN     PartNumber
-	QtyPer      Quantity
-	FindNumber  int
+	ParentPN PartNumber
+	ChildPN  PartNumber
+	QtyPer   Quantity
+
+	// FindNumber identifies the physical location/position where this part is installed
+	// on the parent assembly. It's like a "slot number" that corresponds to assembly
+	// drawings, installation procedures, and maintenance documentation.
+	//
+	// Example: On F1_ENGINE, FindNumber 300 might be the turbopump mounting location.
+	// All parts that can be installed at the same physical position share the same
+	// FindNumber, making it useful for grouping alternates and assembly instructions.
+	FindNumber int
+
 	Effectivity SerialEffectivity
 
-	// AlternateGroup groups multiple BOM lines that can substitute for each other.
-	// Lines with the same AlternateGroup, ParentPN, and FindNumber represent
-	// interchangeable parts. Empty string means no alternates (standard BOM line).
-	//
-	// Example: "F1_TURBOPUMP_ALT" groups F1_TURBOPUMP_V1 and F1_TURBOPUMP_V2
-	// as alternates that can both fulfill the turbopump requirement on F1_ENGINE.
-	AlternateGroup string
-
-	// Priority determines selection order within an AlternateGroup.
+	// Priority determines selection order for alternates at the same FindNumber.
+	// Multiple BOM lines with the same ParentPN and FindNumber represent alternates.
 	// Lower numbers = higher priority (1 = primary, 2 = first alternate, etc.).
-	// When multiple lines have the same priority, they are equally preferred.
+	// Priority 0 means standard BOM line (no alternates).
 	//
-	// MRP logic selects the highest priority alternate that satisfies the serial
-	// effectivity for the target serial number. Inventory availability may also
-	// influence selection within the same priority level.
+	// Example: All F1_TURBOPUMP parts at FindNumber 300 compete as alternates,
+	// with MRP selecting the highest priority part that satisfies serial effectivity.
+	// Inventory availability may also influence selection within the same priority level.
 	Priority int
 }
 
 // NewBOMLine creates a validated BOMLine
-func NewBOMLine(parentPN, childPN PartNumber, qtyPer Quantity, findNumber int, effectivity SerialEffectivity, alternateGroup string, priority int) (*BOMLine, error) {
+func NewBOMLine(parentPN, childPN PartNumber, qtyPer Quantity, findNumber int, effectivity SerialEffectivity, priority int) (*BOMLine, error) {
 	if string(parentPN) == "" {
 		return nil, fmt.Errorf("parent part number cannot be empty")
 	}
@@ -70,12 +72,11 @@ func NewBOMLine(parentPN, childPN PartNumber, qtyPer Quantity, findNumber int, e
 	}
 
 	return &BOMLine{
-		ParentPN:       parentPN,
-		ChildPN:        childPN,
-		QtyPer:         qtyPer,
-		FindNumber:     findNumber,
-		Effectivity:    effectivity,
-		AlternateGroup: alternateGroup,
-		Priority:       priority,
+		ParentPN:    parentPN,
+		ChildPN:     childPN,
+		QtyPer:      qtyPer,
+		FindNumber:  findNumber,
+		Effectivity: effectivity,
+		Priority:    priority,
 	}, nil
 }

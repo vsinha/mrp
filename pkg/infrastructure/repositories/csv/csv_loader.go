@@ -79,20 +79,32 @@ func (l *Loader) LoadBOM(filename string) ([]*entities.BOMLine, error) {
 		return nil, fmt.Errorf("BOM CSV must have header and at least one data row")
 	}
 
-	// Validate header
-	expectedHeader := []string{"parent_pn", "child_pn", "qty_per", "find_number", "from_serial", "to_serial"}
+	// Validate header - support both old format (without priority) and new format (with priority)
+	expectedHeaderOld := []string{"parent_pn", "child_pn", "qty_per", "find_number", "from_serial", "to_serial"}
+	expectedHeaderNew := []string{"parent_pn", "child_pn", "qty_per", "find_number", "from_serial", "to_serial", "priority"}
 	header := records[0]
-	if !validateHeader(header, expectedHeader) {
-		return nil, fmt.Errorf("BOM CSV header mismatch. Expected: %v, Got: %v", expectedHeader, header)
+	
+	var hasPriority bool
+	if validateHeader(header, expectedHeaderNew) {
+		hasPriority = true
+	} else if validateHeader(header, expectedHeaderOld) {
+		hasPriority = false
+	} else {
+		return nil, fmt.Errorf("BOM CSV header mismatch. Expected: %v or %v, Got: %v", expectedHeaderOld, expectedHeaderNew, header)
 	}
 
 	var bomLines []*entities.BOMLine
 	for i, record := range records[1:] {
-		if len(record) != len(expectedHeader) {
-			return nil, fmt.Errorf("BOM CSV row %d: expected %d columns, got %d", i+2, len(expectedHeader), len(record))
+		expectedCols := len(expectedHeaderOld)
+		if hasPriority {
+			expectedCols = len(expectedHeaderNew)
+		}
+		
+		if len(record) != expectedCols {
+			return nil, fmt.Errorf("BOM CSV row %d: expected %d columns, got %d", i+2, expectedCols, len(record))
 		}
 
-		bomLine, err := parseBOMLine(record)
+		bomLine, err := parseBOMLineWithPriority(record, hasPriority)
 		if err != nil {
 			return nil, fmt.Errorf("BOM CSV row %d: %w", i+2, err)
 		}
@@ -297,7 +309,45 @@ func parseBOMLine(record []string) (entities.BOMLine, error) {
 		return entities.BOMLine{}, fmt.Errorf("invalid serial effectivity: %w", err)
 	}
 
-	bomLine, err := entities.NewBOMLine(parentPN, childPN, entities.Quantity(qtyPer), findNumber, *effectivity, "", 0)
+	bomLine, err := entities.NewBOMLine(parentPN, childPN, entities.Quantity(qtyPer), findNumber, *effectivity, 0)
+	if err != nil {
+		return entities.BOMLine{}, fmt.Errorf("invalid BOM line: %w", err)
+	}
+	return *bomLine, nil
+}
+
+func parseBOMLineWithPriority(record []string, hasPriority bool) (entities.BOMLine, error) {
+	parentPN := entities.PartNumber(record[0])
+	childPN := entities.PartNumber(record[1])
+
+	qtyPer, err := strconv.ParseInt(record[2], 10, 64)
+	if err != nil {
+		return entities.BOMLine{}, fmt.Errorf("invalid qty_per: %s", record[2])
+	}
+
+	findNumber, err := strconv.Atoi(record[3])
+	if err != nil {
+		return entities.BOMLine{}, fmt.Errorf("invalid find_number: %s", record[3])
+	}
+
+	fromSerial := record[4]
+	toSerial := record[5]
+
+	effectivity, err := entities.NewSerialEffectivity(fromSerial, toSerial)
+	if err != nil {
+		return entities.BOMLine{}, fmt.Errorf("invalid serial effectivity: %w", err)
+	}
+
+	// Default priority is 0 (standard/primary)
+	priority := 0
+	if hasPriority && len(record) > 6 {
+		priority, err = strconv.Atoi(record[6])
+		if err != nil {
+			return entities.BOMLine{}, fmt.Errorf("invalid priority: %s", record[6])
+		}
+	}
+
+	bomLine, err := entities.NewBOMLine(parentPN, childPN, entities.Quantity(qtyPer), findNumber, *effectivity, priority)
 	if err != nil {
 		return entities.BOMLine{}, fmt.Errorf("invalid BOM line: %w", err)
 	}

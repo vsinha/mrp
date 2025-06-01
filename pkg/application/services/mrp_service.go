@@ -29,6 +29,7 @@ type MRPService struct {
 	demandRepo      repositories.DemandRepository
 	serialComp      *services.SerialComparator
 	criticalPathSvc *CriticalPathService
+	alternateSelector *AlternateSelector
 	config          EngineConfig
 
 	// Memoization cache for BOM explosions
@@ -59,6 +60,7 @@ func NewMRPServiceWithConfig(
 ) *MRPService {
 	serialComp := services.NewSerialComparator()
 	criticalPathSvc := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, serialComp)
+	alternateSelector := NewAlternateSelector(inventoryRepo, itemRepo)
 
 	return &MRPService{
 		bomRepo:         bomRepo,
@@ -67,6 +69,7 @@ func NewMRPServiceWithConfig(
 		demandRepo:      demandRepo,
 		serialComp:      serialComp,
 		criticalPathSvc: criticalPathSvc,
+		alternateSelector: alternateSelector,
 		config:          config,
 		explosionCache:  make(map[dto.ExplosionCacheKey]*dto.ExplosionResult),
 	}
@@ -172,14 +175,11 @@ func (s *MRPService) explodeRequirements(ctx context.Context, pn entities.PartNu
 		return nil, fmt.Errorf("failed to get item %s: %w", pn, err)
 	}
 
-	// Get effective BOM for this part and target serial
-	bomLines, err := s.bomRepo.GetEffectiveLines(pn, targetSerial)
+	// Get alternate groups for this part and target serial
+	alternateGroups, err := s.bomRepo.GetAlternateGroups(pn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get BOM for %s: %w", pn, err)
+		return nil, fmt.Errorf("failed to get alternate groups for %s: %w", pn, err)
 	}
-
-	// Filter BOM lines by serial effectivity (already done by GetEffectiveLines)
-	effectiveLines := s.serialComp.ResolveSerialEffectivity(targetSerial, bomLines)
 
 	var requirements []*entities.GrossRequirement
 
@@ -194,17 +194,34 @@ func (s *MRPService) explodeRequirements(ctx context.Context, pn entities.PartNu
 	}
 	requirements = append(requirements, req)
 
-	// If this part has BOM lines, recursively explode child requirements
-	if len(effectiveLines) > 0 {
-		for _, line := range effectiveLines {
-			childQty := line.QtyPer * quantity
-			childNeedDate := needDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour)
-			childTrace := demandTrace + " -> " + string(line.ChildPN)
+	// If this part has BOM lines, select best alternates and explode child requirements
+	if len(alternateGroups) > 0 {
+		for findNumber := range alternateGroups {
+			// Filter alternates by serial effectivity for this target serial
+			effectiveAlternates, err := s.bomRepo.GetEffectiveAlternates(pn, findNumber, targetSerial)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get effective alternates for %s find %d: %w", pn, findNumber, err)
+			}
 
-			childRequirements, err := s.explodeRequirements(ctx, line.ChildPN, targetSerial,
+			if len(effectiveAlternates) == 0 {
+				continue // No effective alternates for this serial
+			}
+
+			// Select the best alternate from the effective ones
+			selectedAlternate := s.alternateSelector.SelectBestAlternate(effectiveAlternates)
+			if selectedAlternate == nil {
+				continue // No suitable alternate found
+			}
+
+			// Explode the selected alternate
+			childQty := selectedAlternate.QtyPer * quantity
+			childNeedDate := needDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour)
+			childTrace := demandTrace + " -> " + string(selectedAlternate.ChildPN)
+
+			childRequirements, err := s.explodeRequirements(ctx, selectedAlternate.ChildPN, targetSerial,
 				childNeedDate, childTrace, location, childQty)
 			if err != nil {
-				return nil, fmt.Errorf("failed to explode child %s: %w", line.ChildPN, err)
+				return nil, fmt.Errorf("failed to explode child %s: %w", selectedAlternate.ChildPN, err)
 			}
 
 			requirements = append(requirements, childRequirements...)
