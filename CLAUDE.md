@@ -8,3 +8,4 @@ Test: go test ./...
 - When something doesn't work, debug and fix it - don't start over with a simple version
 - When you build put results in the bin/ folder
 - run `go fmt` after making any change
+- run `golines` on a file after making any change
