@@ -385,17 +385,17 @@ func TestMRPService_ExplodeDemand_OrderSplitting(t *testing.T) {
 	item, err := entities.NewItem(
 		"HIGH_DEMAND_PART",
 		"Part with Limited Order Size",
-		10,                              // 10 day lead time
+		10, // 10 day lead time
 		entities.LotForLot,
-		entities.Quantity(1),            // min qty
-		entities.Quantity(15),           // max qty - this will force splitting
-		entities.Quantity(0),            // safety stock
+		entities.Quantity(1),  // min qty
+		entities.Quantity(15), // max qty - this will force splitting
+		entities.Quantity(0),  // safety stock
 		"EA",
 	)
 	if err != nil {
 		t.Fatalf("Failed to create item: %v", err)
 	}
-	
+
 	err = itemRepo.SaveItem(item)
 	if err != nil {
 		t.Fatalf("Failed to save item: %v", err)
@@ -424,7 +424,7 @@ func TestMRPService_ExplodeDemand_OrderSplitting(t *testing.T) {
 	// Should have exactly 4 planned orders (15+15+15+5 = 50)
 	expectedOrders := 4
 	actualOrders := len(result.PlannedOrders)
-	
+
 	if actualOrders != expectedOrders {
 		t.Errorf("Expected %d planned orders, got %d", expectedOrders, actualOrders)
 	}
@@ -446,9 +446,9 @@ func TestMRPService_ExplodeDemand_OrderSplitting(t *testing.T) {
 			t.Errorf("Order %d quantity %d exceeds max order qty of 15", i, order.Quantity)
 		}
 
-		// Check sequential scheduling (each order due before the previous one)
-		if i > 0 && !order.DueDate.Before(previousDueDate) {
-			t.Errorf("Order %d due date %v should be before previous due date %v for sequential ordering", 
+		// Check forward sequential scheduling (each order due after the previous one)
+		if i > 0 && !order.DueDate.After(previousDueDate) {
+			t.Errorf("Order %d due date %v should be after previous due date %v for forward sequential ordering",
 				i, order.DueDate, previousDueDate)
 		}
 		previousDueDate = order.DueDate
@@ -470,7 +470,7 @@ func TestMRPService_ExplodeDemand_OrderSplitting(t *testing.T) {
 		// Verify lead time is respected (start + lead time = due date)
 		expectedDueDate := order.StartDate.Add(10 * 24 * time.Hour) // 10 day lead time
 		if !order.DueDate.Equal(expectedDueDate) {
-			t.Errorf("Order %d due date %v doesn't match start date + lead time %v", 
+			t.Errorf("Order %d due date %v doesn't match start date + lead time %v",
 				i, order.DueDate, expectedDueDate)
 		}
 	}
@@ -484,5 +484,493 @@ func TestMRPService_ExplodeDemand_OrderSplitting(t *testing.T) {
 	expectedSplitOrders := 3
 	if splitOrderCount != expectedSplitOrders {
 		t.Errorf("Expected %d split orders, got %d", expectedSplitOrders, splitOrderCount)
+	}
+}
+
+func TestMRPService_ForwardScheduling_BasicDependencyTiming(t *testing.T) {
+	ctx := context.Background()
+
+	// Create test repositories
+	bomRepo := memory.NewBOMRepository(5)
+	itemRepo := memory.NewItemRepository(5)
+	inventoryRepo := memory.NewInventoryRepository()
+	demandRepo := memory.NewDemandRepository()
+
+	// Create items with specific lead times for predictable scheduling
+	items := []*entities.Item{
+		{
+			PartNumber:    "PARENT_ASSY",
+			Description:   "Parent Assembly",
+			LeadTimeDays:  10,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+		{
+			PartNumber:    "CHILD_COMP",
+			Description:   "Child Component",
+			LeadTimeDays:  5,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+	}
+
+	for _, item := range items {
+		err := itemRepo.SaveItem(item)
+		if err != nil {
+			t.Fatalf("Failed to save item: %v", err)
+		}
+	}
+
+	// Create BOM relationship: PARENT_ASSY uses CHILD_COMP
+	bomLine := &entities.BOMLine{
+		ParentPN:    "PARENT_ASSY",
+		ChildPN:     "CHILD_COMP",
+		QtyPer:      entities.Quantity(1),
+		FindNumber:  100,
+		Effectivity: entities.SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
+	}
+
+	err := bomRepo.SaveBOMLine(bomLine)
+	if err != nil {
+		t.Fatalf("Failed to save BOM line: %v", err)
+	}
+
+	service := newTestMRPService()
+
+	// Create demand for parent assembly
+	fixedTime := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+	demands := []*entities.DemandRequirement{
+		{
+			PartNumber:   "PARENT_ASSY",
+			Quantity:     entities.Quantity(1),
+			NeedDate:     fixedTime,
+			DemandSource: "TEST_ORDER",
+			Location:     "FACTORY",
+			TargetSerial: "SN001",
+		},
+	}
+
+	result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
+	if err != nil {
+		t.Fatalf("ExplodeDemand failed: %v", err)
+	}
+
+	// Should have orders for both parent and child
+	if len(result.PlannedOrders) != 2 {
+		t.Fatalf("Expected 2 planned orders, got %d", len(result.PlannedOrders))
+	}
+
+	var childOrder, parentOrder *entities.PlannedOrder
+	for i := range result.PlannedOrders {
+		if result.PlannedOrders[i].PartNumber == "CHILD_COMP" {
+			childOrder = &result.PlannedOrders[i]
+		}
+		if result.PlannedOrders[i].PartNumber == "PARENT_ASSY" {
+			parentOrder = &result.PlannedOrders[i]
+		}
+	}
+
+	if childOrder == nil {
+		t.Fatal("Child component order not found")
+	}
+	if parentOrder == nil {
+		t.Fatal("Parent assembly order not found")
+	}
+
+	// FORWARD SCHEDULING ASSERTIONS:
+	// 1. Child component should start first (no dependencies)
+	// 2. Parent assembly should start AFTER child component completes
+	// 3. Parent start time should equal child completion time
+
+	if !parentOrder.StartDate.After(childOrder.StartDate) {
+		t.Errorf("Parent assembly start date %v should be after child component start date %v",
+			parentOrder.StartDate, childOrder.StartDate)
+	}
+
+	if !parentOrder.StartDate.Equal(childOrder.DueDate) {
+		t.Errorf("Parent assembly start date %v should equal child component due date %v (forward scheduling)",
+			parentOrder.StartDate, childOrder.DueDate)
+	}
+
+	// Verify lead times are respected
+	expectedChildDue := childOrder.StartDate.Add(5 * 24 * time.Hour)
+	if !childOrder.DueDate.Equal(expectedChildDue) {
+		t.Errorf("Child due date %v doesn't match start + 5 day lead time %v",
+			childOrder.DueDate, expectedChildDue)
+	}
+
+	expectedParentDue := parentOrder.StartDate.Add(10 * 24 * time.Hour)
+	if !parentOrder.DueDate.Equal(expectedParentDue) {
+		t.Errorf("Parent due date %v doesn't match start + 10 day lead time %v",
+			parentOrder.DueDate, expectedParentDue)
+	}
+}
+
+func TestMRPService_ForwardScheduling_InventoryImpact(t *testing.T) {
+	ctx := context.Background()
+
+	// Create test repositories
+	bomRepo := memory.NewBOMRepository(5)
+	itemRepo := memory.NewItemRepository(5)
+	inventoryRepo := memory.NewInventoryRepository()
+	demandRepo := memory.NewDemandRepository()
+
+	// Create items
+	items := []*entities.Item{
+		{
+			PartNumber:    "ASSY_WITH_INVENTORY",
+			Description:   "Assembly with Inventory Available",
+			LeadTimeDays:  15,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+		{
+			PartNumber:    "COMP_WITH_INVENTORY",
+			Description:   "Component with Full Inventory",
+			LeadTimeDays:  7,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+		{
+			PartNumber:    "COMP_NO_INVENTORY",
+			Description:   "Component with No Inventory",
+			LeadTimeDays:  10,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+	}
+
+	for _, item := range items {
+		err := itemRepo.SaveItem(item)
+		if err != nil {
+			t.Fatalf("Failed to save item: %v", err)
+		}
+	}
+
+	// Create BOM relationships
+	bomLines := []*entities.BOMLine{
+		{
+			ParentPN:    "ASSY_WITH_INVENTORY",
+			ChildPN:     "COMP_WITH_INVENTORY",
+			QtyPer:      entities.Quantity(1),
+			FindNumber:  100,
+			Effectivity: entities.SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
+		},
+		{
+			ParentPN:    "ASSY_WITH_INVENTORY",
+			ChildPN:     "COMP_NO_INVENTORY",
+			QtyPer:      entities.Quantity(1),
+			FindNumber:  200,
+			Effectivity: entities.SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
+		},
+	}
+
+	for _, bomLine := range bomLines {
+		err := bomRepo.SaveBOMLine(bomLine)
+		if err != nil {
+			t.Fatalf("Failed to save BOM line: %v", err)
+		}
+	}
+
+	// Add inventory for one component (full coverage)
+	inventoryLot := &entities.InventoryLot{
+		PartNumber:  "COMP_WITH_INVENTORY",
+		LotNumber:   "LOT001",
+		Location:    "FACTORY",
+		Quantity:    entities.Quantity(10), // More than needed
+		ReceiptDate: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		Status:      entities.Available,
+	}
+	err := inventoryRepo.SaveInventoryLot(inventoryLot)
+	if err != nil {
+		t.Fatalf("Failed to save inventory: %v", err)
+	}
+
+	service := newTestMRPService()
+
+	// Create demand
+	demands := []*entities.DemandRequirement{
+		{
+			PartNumber:   "ASSY_WITH_INVENTORY",
+			Quantity:     entities.Quantity(1),
+			NeedDate:     time.Date(2025, 8, 1, 0, 0, 0, 0, time.UTC),
+			DemandSource: "INVENTORY_TEST",
+			Location:     "FACTORY",
+			TargetSerial: "SN001",
+		},
+	}
+
+	result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
+	if err != nil {
+		t.Fatalf("ExplodeDemand failed: %v", err)
+	}
+
+	// Should have orders only for parts that need production
+	// COMP_WITH_INVENTORY should be satisfied by inventory (no order)
+	// COMP_NO_INVENTORY should have a production order
+	// ASSY_WITH_INVENTORY should have a production order
+
+	expectedOrders := 2 // Assembly + Component without inventory
+	if len(result.PlannedOrders) != expectedOrders {
+		t.Errorf("Expected %d planned orders, got %d", expectedOrders, len(result.PlannedOrders))
+	}
+
+	var assemblyOrder, componentOrder *entities.PlannedOrder
+	for i := range result.PlannedOrders {
+		if result.PlannedOrders[i].PartNumber == "ASSY_WITH_INVENTORY" {
+			assemblyOrder = &result.PlannedOrders[i]
+		}
+		if result.PlannedOrders[i].PartNumber == "COMP_NO_INVENTORY" {
+			componentOrder = &result.PlannedOrders[i]
+		}
+		// Should NOT have order for COMP_WITH_INVENTORY (covered by inventory)
+		if result.PlannedOrders[i].PartNumber == "COMP_WITH_INVENTORY" {
+			t.Errorf("Should not have production order for COMP_WITH_INVENTORY (covered by inventory)")
+		}
+	}
+
+	if componentOrder == nil {
+		t.Fatal("Component without inventory order not found")
+	}
+	if assemblyOrder == nil {
+		t.Fatal("Assembly order not found")
+	}
+
+	// FORWARD SCHEDULING WITH INVENTORY ASSERTIONS:
+	// Assembly should start when component without inventory completes
+	// (Component with inventory is available immediately, so doesn't delay assembly)
+
+	if !assemblyOrder.StartDate.Equal(componentOrder.DueDate) {
+		t.Errorf("Assembly start date %v should equal component due date %v (forward scheduling with inventory)",
+			assemblyOrder.StartDate, componentOrder.DueDate)
+	}
+
+	// Verify inventory allocation
+	if len(result.Allocations) == 0 {
+		t.Error("Expected inventory allocations")
+	}
+
+	foundInventoryAllocation := false
+	for _, allocation := range result.Allocations {
+		if allocation.PartNumber == "COMP_WITH_INVENTORY" && allocation.AllocatedQty > 0 {
+			foundInventoryAllocation = true
+			if allocation.RemainingDemand != 0 {
+				t.Errorf("Expected full allocation for COMP_WITH_INVENTORY, got remaining demand %d",
+					allocation.RemainingDemand)
+			}
+		}
+	}
+
+	if !foundInventoryAllocation {
+		t.Error("Expected inventory allocation for COMP_WITH_INVENTORY")
+	}
+}
+
+func TestMRPService_ForwardScheduling_ParallelBranches(t *testing.T) {
+	ctx := context.Background()
+
+	// Create test repositories
+	bomRepo := memory.NewBOMRepository(10)
+	itemRepo := memory.NewItemRepository(10)
+	inventoryRepo := memory.NewInventoryRepository()
+	demandRepo := memory.NewDemandRepository()
+
+	// Create items for parallel branch test
+	items := []*entities.Item{
+		{
+			PartNumber:    "ROOT_ASSEMBLY",
+			Description:   "Root Assembly",
+			LeadTimeDays:  5,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+		{
+			PartNumber:    "BRANCH_A_SUBASSY",
+			Description:   "Branch A Sub Assembly",
+			LeadTimeDays:  8,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+		{
+			PartNumber:    "BRANCH_B_SUBASSY",
+			Description:   "Branch B Sub Assembly",
+			LeadTimeDays:  12,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+		{
+			PartNumber:    "COMP_A",
+			Description:   "Component A (fast)",
+			LeadTimeDays:  3,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+		{
+			PartNumber:    "COMP_B",
+			Description:   "Component B (slow)",
+			LeadTimeDays:  15,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			MaxOrderQty:   entities.Quantity(100),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+	}
+
+	for _, item := range items {
+		err := itemRepo.SaveItem(item)
+		if err != nil {
+			t.Fatalf("Failed to save item: %v", err)
+		}
+	}
+
+	// Create BOM structure with parallel branches:
+	// ROOT_ASSEMBLY
+	// ├── BRANCH_A_SUBASSY (8 days)
+	// │   └── COMP_A (3 days) - Total: 11 days
+	// └── BRANCH_B_SUBASSY (12 days)
+	//     └── COMP_B (15 days) - Total: 27 days (critical path)
+	bomLines := []*entities.BOMLine{
+		{
+			ParentPN:    "ROOT_ASSEMBLY",
+			ChildPN:     "BRANCH_A_SUBASSY",
+			QtyPer:      entities.Quantity(1),
+			FindNumber:  100,
+			Effectivity: entities.SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
+		},
+		{
+			ParentPN:    "ROOT_ASSEMBLY",
+			ChildPN:     "BRANCH_B_SUBASSY",
+			QtyPer:      entities.Quantity(1),
+			FindNumber:  200,
+			Effectivity: entities.SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
+		},
+		{
+			ParentPN:    "BRANCH_A_SUBASSY",
+			ChildPN:     "COMP_A",
+			QtyPer:      entities.Quantity(1),
+			FindNumber:  300,
+			Effectivity: entities.SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
+		},
+		{
+			ParentPN:    "BRANCH_B_SUBASSY",
+			ChildPN:     "COMP_B",
+			QtyPer:      entities.Quantity(1),
+			FindNumber:  400,
+			Effectivity: entities.SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
+		},
+	}
+
+	for _, bomLine := range bomLines {
+		err := bomRepo.SaveBOMLine(bomLine)
+		if err != nil {
+			t.Fatalf("Failed to save BOM line: %v", err)
+		}
+	}
+
+	service := newTestMRPService()
+
+	// Create demand
+	demands := []*entities.DemandRequirement{
+		{
+			PartNumber:   "ROOT_ASSEMBLY",
+			Quantity:     entities.Quantity(1),
+			NeedDate:     time.Date(2025, 8, 1, 0, 0, 0, 0, time.UTC),
+			DemandSource: "PARALLEL_TEST",
+			Location:     "FACTORY",
+			TargetSerial: "SN001",
+		},
+	}
+
+	result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
+	if err != nil {
+		t.Fatalf("ExplodeDemand failed: %v", err)
+	}
+
+	// Should have 5 orders (one for each part)
+	if len(result.PlannedOrders) != 5 {
+		t.Fatalf("Expected 5 planned orders, got %d", len(result.PlannedOrders))
+	}
+
+	// Find all orders
+	orders := make(map[string]*entities.PlannedOrder)
+	for i := range result.PlannedOrders {
+		orders[string(result.PlannedOrders[i].PartNumber)] = &result.PlannedOrders[i]
+	}
+
+	compA := orders["COMP_A"]
+	compB := orders["COMP_B"]
+	branchA := orders["BRANCH_A_SUBASSY"]
+	branchB := orders["BRANCH_B_SUBASSY"]
+	root := orders["ROOT_ASSEMBLY"]
+
+	// PARALLEL BRANCH ASSERTIONS:
+	// 1. Both components can start simultaneously (no interdependence)
+	// 2. Branch A waits only for Comp A (not Comp B)
+	// 3. Branch B waits only for Comp B (not Comp A)
+	// 4. Root assembly waits for BOTH branches to complete
+	// 5. Branch B determines the critical path (longer duration)
+
+	// Branch A should start when Comp A completes (independent of Comp B)
+	if !branchA.StartDate.Equal(compA.DueDate) {
+		t.Errorf("Branch A start %v should equal Comp A due %v (independent scheduling)",
+			branchA.StartDate, compA.DueDate)
+	}
+
+	// Branch B should start when Comp B completes (independent of Comp A)
+	if !branchB.StartDate.Equal(compB.DueDate) {
+		t.Errorf("Branch B start %v should equal Comp B due %v (independent scheduling)",
+			branchB.StartDate, compB.DueDate)
+	}
+
+	// Root assembly should wait for BOTH branches (latest completion)
+	latestBranchCompletion := branchA.DueDate
+	if branchB.DueDate.After(latestBranchCompletion) {
+		latestBranchCompletion = branchB.DueDate
+	}
+
+	if !root.StartDate.Equal(latestBranchCompletion) {
+		t.Errorf("Root assembly start %v should equal latest branch completion %v",
+			root.StartDate, latestBranchCompletion)
+	}
+
+	// Verify that Branch B's path is indeed the critical path (takes longer)
+	branchATotal := compA.DueDate.Sub(compA.StartDate) + branchA.DueDate.Sub(branchA.StartDate)
+	branchBTotal := compB.DueDate.Sub(compB.StartDate) + branchB.DueDate.Sub(branchB.StartDate)
+
+	if branchBTotal <= branchATotal {
+		t.Error("Branch B should be the critical path (longer duration)")
+	}
+
+	// Root assembly should start based on Branch B completion (critical path)
+	if !root.StartDate.Equal(branchB.DueDate) {
+		t.Errorf("Root assembly should start when critical path (Branch B) completes")
 	}
 }

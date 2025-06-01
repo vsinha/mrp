@@ -15,6 +15,7 @@ import (
 type Config struct {
 	Format        string
 	OutputDir     string
+	SVGOutput     string // Path for SVG Gantt chart output
 	Verbose       bool
 	ExplosionTime time.Duration
 	InputFiles    map[string]string
@@ -22,16 +23,32 @@ type Config struct {
 
 // Generate creates output in the specified format
 func Generate(result *dto.MRPResult, config Config) error {
+	// Generate primary output format
+	var err error
 	switch config.Format {
 	case "text":
-		return generateTextOutput(result, config)
+		err = generateTextOutput(result, config)
 	case "json":
-		return generateJSONOutput(result, config)
+		err = generateJSONOutput(result, config)
 	case "csv":
-		return generateCSVOutput(result, config)
+		err = generateCSVOutput(result, config)
 	default:
-		return fmt.Errorf("unsupported output format: %s", config.Format)
+		err = fmt.Errorf("unsupported output format: %s", config.Format)
 	}
+	
+	if err != nil {
+		return err
+	}
+
+	// Generate SVG Gantt chart if requested
+	if config.SVGOutput != "" {
+		err = generateSVGOutput(result, config)
+		if err != nil {
+			return fmt.Errorf("failed to generate SVG output: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // generateTextOutput creates human-readable text output
@@ -208,5 +225,26 @@ func writeAllocationsCSV(allocations []entities.AllocationResult, filename strin
 
 func writeShortagesCSV(shortages []entities.Shortage, filename string) error {
 	// CSV implementation for shortages
+	return nil
+}
+
+// generateSVGOutput creates SVG Gantt chart output
+func generateSVGOutput(result *dto.MRPResult, config Config) error {
+	// Create Gantt chart
+	gantt := NewGanttChart(result)
+	
+	// Generate SVG content
+	svgContent := gantt.GenerateSVG(result)
+	
+	// Write SVG to file
+	err := os.WriteFile(config.SVGOutput, []byte(svgContent), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write SVG file: %w", err)
+	}
+	
+	if config.Verbose {
+		fmt.Printf("📊 SVG Gantt chart saved to: %s\n", config.SVGOutput)
+	}
+	
 	return nil
 }

@@ -48,6 +48,7 @@ func runMRPCommand(ctx context.Context, args []string) {
 		demandsFile   = flagSet.String("demands", "", "Path to demands CSV file")
 		outputDir     = flagSet.String("output", "", "Output directory for results (optional)")
 		format        = flagSet.String("format", "text", "Output format: text, json, csv")
+		svgOutput     = flagSet.String("svg", "", "Generate SVG Gantt chart to specified file")
 		verbose       = flagSet.Bool("verbose", false, "Enable verbose output")
 		criticalPath  = flagSet.Bool("critical-path", false, "Perform critical path analysis")
 		topPaths      = flagSet.Int("top-paths", 3, "Number of top critical paths to analyze")
@@ -65,6 +66,7 @@ func runMRPCommand(ctx context.Context, args []string) {
 		DemandsFile:   *demandsFile,
 		OutputDir:     *outputDir,
 		Format:        *format,
+		SVGOutput:     *svgOutput,
 		Verbose:       *verbose,
 		CriticalPath:  *criticalPath,
 		TopPaths:      *topPaths,

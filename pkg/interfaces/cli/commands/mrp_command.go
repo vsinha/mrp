@@ -27,6 +27,7 @@ type Config struct {
 	DemandsFile   string
 	OutputDir     string
 	Format        string
+	SVGOutput     string // Path for SVG Gantt chart output
 	Verbose       bool
 	CriticalPath  bool
 	TopPaths      int
@@ -242,6 +243,7 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	outputConfig := output.Config{
 		Format:        c.config.Format,
 		OutputDir:     c.config.OutputDir,
+		SVGOutput:     c.config.SVGOutput,
 		Verbose:       c.config.Verbose,
 		ExplosionTime: explosionTime,
 		InputFiles:    files,
@@ -335,6 +337,7 @@ OPTIONS:
     -demands <file>     Path to demands CSV file
     -output <dir>       Output directory for results (optional)
     -format <fmt>       Output format: text, json, csv (default: text)
+    -svg <file>         Generate SVG Gantt chart to specified file
     -verbose            Enable verbose output
     -critical-path      Perform critical path analysis on demands
     -top-paths <n>      Number of top critical paths to analyze (default: 3)
@@ -382,6 +385,9 @@ EXAMPLES:
 
     # Generate JSON output with critical path
     mrp -scenario examples/large_vehicle -format json -output results/ -critical-path
+
+    # Generate SVG Gantt chart visualization
+    mrp -scenario examples/apollo_csm -svg production_schedule.svg -verbose
 
     # Run with verbose output
     mrp -scenario examples/apollo_saturn_v_stack -verbose
