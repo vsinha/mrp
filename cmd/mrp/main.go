@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/vsinha/mrp/pkg/mrp"
@@ -23,6 +24,8 @@ func main() {
 		outputDir   = flag.String("output", "", "Output directory for results (optional)")
 		format      = flag.String("format", "text", "Output format: text, json, csv")
 		verbose     = flag.Bool("verbose", false, "Enable verbose output")
+		criticalPath = flag.Bool("critical-path", false, "Perform critical path analysis")
+		topPaths    = flag.Int("top-paths", 3, "Number of top critical paths to analyze")
 		help        = flag.Bool("help", false, "Show help message")
 	)
 	
@@ -179,13 +182,69 @@ func main() {
 		fmt.Printf("✅ MRP explosion completed in %v\n\n", explosionTime)
 	}
 	
+	// Perform critical path analysis if requested
+	var criticalPathAnalyses []*mrp.CriticalPathAnalysis
+	if *criticalPath && len(demands) > 0 {
+		if *verbose {
+			fmt.Println("🔍 Analyzing critical paths...")
+		}
+		
+		criticalPathStart := time.Now()
+		for i, demand := range demands {
+			analysis, err := engine.AnalyzeCriticalPath(ctx, demand, *topPaths)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Critical path analysis failed for demand %d (%s): %v\n", 
+					i+1, demand.PartNumber, err)
+				continue
+			}
+			criticalPathAnalyses = append(criticalPathAnalyses, analysis)
+		}
+		criticalPathTime := time.Since(criticalPathStart)
+		
+		if *verbose {
+			fmt.Printf("✅ Critical path analysis completed in %v\n\n", criticalPathTime)
+		}
+		
+		// Display critical path results
+		if len(criticalPathAnalyses) > 0 && (*verbose || *format == "text") {
+			fmt.Println("📈 Critical Path Analysis Results:")
+			for i, analysis := range criticalPathAnalyses {
+				fmt.Printf("\nDemand %d (%s):\n", i+1, analysis.TopLevelPart)
+				fmt.Printf("  %s\n", analysis.GetCriticalPathSummary())
+				fmt.Printf("  Total paths analyzed: %d\n", analysis.TotalPaths)
+				fmt.Printf("  Inventory coverage: %.1f%%\n", analysis.GetInventoryCoverage())
+				
+				if *verbose && len(analysis.CriticalPath.PathDetails) > 0 {
+					fmt.Println("  Critical path details:")
+					for _, node := range analysis.CriticalPath.PathDetails {
+						inventoryStatus := "No inventory"
+						if node.HasInventory {
+							inventoryStatus = fmt.Sprintf("Has %s units", strconv.FormatInt(int64(node.InventoryQty), 10))
+						}
+						fmt.Printf("    Level %d: %s (%d → %d days) - %s\n", 
+							node.Level, node.PartNumber, node.LeadTimeDays, node.EffectiveLeadTime, inventoryStatus)
+					}
+				}
+				
+				if len(analysis.TopPaths) > 1 {
+					fmt.Printf("  Top %d paths:\n", len(analysis.TopPaths))
+					for j, path := range analysis.TopPaths {
+						fmt.Printf("    %d. %s\n", j+1, path.GetPathSummary())
+					}
+				}
+			}
+			fmt.Println()
+		}
+	}
+	
 	// Generate output
 	outputConfig := OutputConfig{
-		Format:        *format,
-		OutputDir:     *outputDir,
-		Verbose:       *verbose,
-		ExplosionTime: explosionTime,
-		InputFiles:    files,
+		Format:              *format,
+		OutputDir:           *outputDir,
+		Verbose:             *verbose,
+		ExplosionTime:       explosionTime,
+		InputFiles:          files,
+		CriticalPathResults: criticalPathAnalyses,
 	}
 	
 	err = generateOutput(result, outputConfig)
@@ -215,6 +274,8 @@ OPTIONS:
     -output <dir>       Output directory for results (optional)
     -format <fmt>       Output format: text, json, csv (default: text)
     -verbose            Enable verbose output
+    -critical-path      Perform critical path analysis on demands
+    -top-paths <n>      Number of top critical paths to analyze (default: 3)
     -help               Show this help message
 
 SCENARIO DIRECTORY STRUCTURE:
@@ -248,11 +309,17 @@ EXAMPLES:
     # Run aerospace scenario
     mrp -scenario examples/aerospace_basic -verbose
 
+    # Run with critical path analysis
+    mrp -scenario examples/aerospace_basic -critical-path -verbose
+
+    # Analyze top 5 critical paths
+    mrp -scenario examples/aerospace_basic -critical-path -top-paths 5
+
     # Run with individual files
     mrp -bom data/bom.csv -items data/items.csv -inventory data/inventory.csv -demands data/demands.csv
 
-    # Generate JSON output
-    mrp -scenario examples/large_vehicle -format json -output results/
+    # Generate JSON output with critical path
+    mrp -scenario examples/large_vehicle -format json -output results/ -critical-path
 
     # Run with verbose output
     mrp -scenario examples/apollo_saturn_v_stack -verbose
@@ -260,9 +327,10 @@ EXAMPLES:
 }
 
 type OutputConfig struct {
-	Format        string
-	OutputDir     string
-	Verbose       bool
-	ExplosionTime time.Duration
-	InputFiles    map[string]string
+	Format              string
+	OutputDir           string
+	Verbose             bool
+	ExplosionTime       time.Duration
+	InputFiles          map[string]string
+	CriticalPathResults []*mrp.CriticalPathAnalysis
 }

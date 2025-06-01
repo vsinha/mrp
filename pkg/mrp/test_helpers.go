@@ -2,8 +2,6 @@ package mrp
 
 import (
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 // Creates a BOM repository for testing with reasonable defaults
@@ -32,8 +30,8 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 		Description:     "Saturn V Launch Vehicle",
 		LeadTimeDays:    180,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -42,8 +40,8 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 		Description:     "F-1 Engine Assembly",
 		LeadTimeDays:    120,
 		LotSizeRule:     MinimumQty,
-		MinOrderQty:     Quantity(decimal.NewFromInt(10)),
-		SafetyStock:     Quantity(decimal.NewFromInt(2)),
+		MinOrderQty:     Quantity(10),
+		SafetyStock:     Quantity(2),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -52,8 +50,8 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 		Description:     "J-2 Engine V1",
 		LeadTimeDays:    90,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -62,8 +60,8 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 		Description:     "J-2 Engine V2",
 		LeadTimeDays:    90,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -72,8 +70,8 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 		Description:     "F-1 Turbopump Assembly V1",
 		LeadTimeDays:    60,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -82,8 +80,8 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 		Description:     "F-1 Turbopump Assembly V2",
 		LeadTimeDays:    60,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -91,7 +89,7 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 	bomRepo.AddBOMLine(BOMLine{
 		ParentPN:     "SATURN_V",
 		ChildPN:      "F1_ENGINE",
-		QtyPer:       Quantity(decimal.NewFromInt(5)),
+		QtyPer:       Quantity(5),
 		FindNumber:   100,
 		Effectivity:  SerialEffectivity{FromSerial: "AS501", ToSerial: ""},
 	})
@@ -99,7 +97,7 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 	bomRepo.AddBOMLine(BOMLine{
 		ParentPN:     "SATURN_V",
 		ChildPN:      "J2_ENGINE_V1",
-		QtyPer:       Quantity(decimal.NewFromInt(6)),
+		QtyPer:       Quantity(6),
 		FindNumber:   200,
 		Effectivity:  SerialEffectivity{FromSerial: "AS501", ToSerial: "AS506"},
 	})
@@ -107,7 +105,7 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 	bomRepo.AddBOMLine(BOMLine{
 		ParentPN:     "SATURN_V",
 		ChildPN:      "J2_ENGINE_V2",
-		QtyPer:       Quantity(decimal.NewFromInt(6)),
+		QtyPer:       Quantity(6),
 		FindNumber:   200,
 		Effectivity:  SerialEffectivity{FromSerial: "AS507", ToSerial: ""},
 	})
@@ -115,7 +113,7 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 	bomRepo.AddBOMLine(BOMLine{
 		ParentPN:     "F1_ENGINE",
 		ChildPN:      "F1_TURBOPUMP_V1",
-		QtyPer:       Quantity(decimal.NewFromInt(1)),
+		QtyPer:       Quantity(1),
 		FindNumber:   300,
 		Effectivity:  SerialEffectivity{FromSerial: "AS501", ToSerial: "AS505"},
 	})
@@ -123,7 +121,7 @@ func buildAerospaceTestData() (*BOMRepository, *InventoryRepository) {
 	bomRepo.AddBOMLine(BOMLine{
 		ParentPN:     "F1_ENGINE",
 		ChildPN:      "F1_TURBOPUMP_V2",
-		QtyPer:       Quantity(decimal.NewFromInt(1)),
+		QtyPer:       Quantity(1),
 		FindNumber:   300,
 		Effectivity:  SerialEffectivity{FromSerial: "AS506", ToSerial: ""},
 	})

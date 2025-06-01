@@ -7,8 +7,6 @@ import (
 	"runtime/debug"
 	"sync"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 // EngineConfig holds configuration for MRP engine optimization
@@ -73,7 +71,7 @@ func (e *Engine) ExplodeDemand(ctx context.Context, demands []DemandRequirement)
 	
 	for _, demand := range demands {
 		grossReqs, err := e.explodeRequirements(ctx, demand.PartNumber, demand.TargetSerial, 
-			demand.NeedDate, demand.DemandSource, demand.Location, decimal.Decimal(demand.Quantity))
+			demand.NeedDate, demand.DemandSource, demand.Location, demand.Quantity)
 		if err != nil {
 			return nil, fmt.Errorf("failed to explode demand for %s: %w", demand.PartNumber, err)
 		}
@@ -111,7 +109,7 @@ func (e *Engine) ExplodeDemand(ctx context.Context, demands []DemandRequirement)
 
 // explodeRequirements recursively explodes a part's BOM with memoization
 func (e *Engine) explodeRequirements(ctx context.Context, pn PartNumber, targetSerial string, 
-	needDate time.Time, demandTrace string, location string, quantity decimal.Decimal) ([]GrossRequirement, error) {
+	needDate time.Time, demandTrace string, location string, quantity Quantity) ([]GrossRequirement, error) {
 	
 	// Create cache key for memoization
 	cacheKey := ExplosionCacheKey{
@@ -129,7 +127,7 @@ func (e *Engine) explodeRequirements(ctx context.Context, pn PartNumber, targetS
 		var scaledRequirements []GrossRequirement
 		for _, req := range cached.Requirements {
 			scaledReq := req
-			scaledReq.Quantity = Quantity(decimal.Decimal(req.Quantity).Mul(quantity))
+			scaledReq.Quantity = req.Quantity * quantity
 			scaledReq.DemandTrace = demandTrace + " -> " + req.DemandTrace
 			scaledReq.NeedDate = needDate.Add(-time.Duration(cached.LeadTimeDays) * 24 * time.Hour)
 			scaledReq.Location = location
@@ -158,7 +156,7 @@ func (e *Engine) explodeRequirements(ctx context.Context, pn PartNumber, targetS
 	// Always create requirement for this part itself
 	req := GrossRequirement{
 		PartNumber:   pn,
-		Quantity:     Quantity(quantity),
+		Quantity:     quantity,
 		NeedDate:     needDate,
 		DemandTrace:  demandTrace,
 		Location:     location,
@@ -169,7 +167,7 @@ func (e *Engine) explodeRequirements(ctx context.Context, pn PartNumber, targetS
 	// If this part has BOM lines, recursively explode child requirements
 	if len(effectiveLines) > 0 {
 		for _, line := range effectiveLines {
-			childQty := decimal.Decimal(line.QtyPer).Mul(quantity)
+			childQty := line.QtyPer * quantity
 			childNeedDate := needDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour)
 			childTrace := demandTrace + " -> " + string(line.ChildPN)
 			
@@ -189,7 +187,7 @@ func (e *Engine) explodeRequirements(ctx context.Context, pn PartNumber, targetS
 	
 	// Scale back to unit quantity for caching
 	for i := range baseRequirements {
-		baseRequirements[i].Quantity = Quantity(decimal.Decimal(baseRequirements[i].Quantity).Div(quantity))
+		baseRequirements[i].Quantity = baseRequirements[i].Quantity / quantity
 		// Remove current demand trace prefix for generic caching
 		baseRequirements[i].DemandTrace = string(baseRequirements[i].PartNumber)
 	}
@@ -223,9 +221,9 @@ func (e *Engine) allocateInventory(ctx context.Context, grossRequirements []Gros
 	// Process each part/location combination
 	for _, reqs := range reqMap {
 		// Calculate total demand for this part/location
-		totalDemand := decimal.Zero
+		var totalDemand Quantity
 		for _, req := range reqs {
-			totalDemand = totalDemand.Add(decimal.Decimal(req.Quantity))
+			totalDemand += req.Quantity
 		}
 		
 		// Get first requirement for part number and location
@@ -240,23 +238,31 @@ func (e *Engine) allocateInventory(ctx context.Context, grossRequirements []Gros
 		
 		// Allocate inventory using FIFO logic
 		allocation, remaining := e.allocateFIFO(firstReq.PartNumber, firstReq.Location, 
-			Quantity(totalDemand), lotInventory, serialInventory)
+			totalDemand, lotInventory, serialInventory)
 		
-		if allocation.AllocatedQty.Decimal().IsPositive() {
+		if allocation.AllocatedQty > 0 {
 			allocations = append(allocations, allocation)
 		}
 		
 		// Create net requirements for remaining demand
-		if remaining.Decimal().IsPositive() {
+		if remaining > 0 {
 			// Distribute remaining demand proportionally across original requirements
-			for _, req := range reqs {
-				proportion := decimal.Decimal(req.Quantity).Div(totalDemand)
-				netQty := remaining.Decimal().Mul(proportion)
+			distributedSoFar := Quantity(0)
+			for i, req := range reqs {
+				var netQty Quantity
+				if i == len(reqs)-1 {
+					// Last requirement gets any remaining quantity to avoid rounding errors
+					netQty = remaining - distributedSoFar
+				} else {
+					// Proportional distribution for other requirements
+					netQty = (req.Quantity * remaining) / totalDemand
+					distributedSoFar += netQty
+				}
 				
-				if netQty.IsPositive() {
+				if netQty > 0 {
 					netReq := NetRequirement{
 						PartNumber:   req.PartNumber,
-						Quantity:     Quantity(netQty),
+						Quantity:     netQty,
 						NeedDate:     req.NeedDate,
 						DemandTrace:  req.DemandTrace,
 						Location:     req.Location,
@@ -278,57 +284,62 @@ func (e *Engine) allocateFIFO(pn PartNumber, location string, demandQty Quantity
 	result := AllocationResult{
 		PartNumber:      pn,
 		Location:        location,
-		AllocatedQty:    Quantity(decimal.Zero),
+		AllocatedQty:    0,
 		RemainingDemand: demandQty,
 		AllocatedFrom:   []InventoryAllocation{},
 	}
 	
-	remaining := decimal.Decimal(demandQty)
+	remaining := demandQty
 	
 	// First allocate from serialized inventory (FIFO by receipt date)
 	for _, inv := range serialInventory {
-		if inv.Status != Available || remaining.IsZero() {
+		if inv.Status != Available || remaining == 0 {
 			continue
 		}
 		
 		// Serialized items are quantity 1
-		allocated := decimal.NewFromInt(1)
-		remaining = remaining.Sub(allocated)
+		allocated := Quantity(1)
+		remaining = remaining - allocated
 		
 		allocation := InventoryAllocation{
 			SerialNumber: inv.SerialNumber,
-			Quantity:     Quantity(allocated),
+			Quantity:     allocated,
 			Location:     location,
 		}
 		
 		result.AllocatedFrom = append(result.AllocatedFrom, allocation)
-		result.AllocatedQty = Quantity(decimal.Decimal(result.AllocatedQty).Add(allocated))
+		result.AllocatedQty = result.AllocatedQty + allocated
 	}
 	
 	// Then allocate from lot inventory (FIFO by receipt date within lot)
 	for _, lot := range lotInventory {
-		if lot.Status != Available || remaining.IsZero() {
+		if lot.Status != Available || remaining == 0 {
 			continue
 		}
 		
-		availableInLot := decimal.Decimal(lot.Quantity)
-		allocateFromLot := decimal.Min(remaining, availableInLot)
+		availableInLot := lot.Quantity
+		var allocateFromLot Quantity
+		if remaining < availableInLot {
+			allocateFromLot = remaining
+		} else {
+			allocateFromLot = availableInLot
+		}
 		
-		if allocateFromLot.IsPositive() {
+		if allocateFromLot > 0 {
 			allocation := InventoryAllocation{
 				LotNumber: lot.LotNumber,
-				Quantity:  Quantity(allocateFromLot),
+				Quantity:  allocateFromLot,
 				Location:  location,
 			}
 			
 			result.AllocatedFrom = append(result.AllocatedFrom, allocation)
-			result.AllocatedQty = Quantity(decimal.Decimal(result.AllocatedQty).Add(allocateFromLot))
-			remaining = remaining.Sub(allocateFromLot)
+			result.AllocatedQty = result.AllocatedQty + allocateFromLot
+			remaining = remaining - allocateFromLot
 		}
 	}
 	
-	result.RemainingDemand = Quantity(remaining)
-	return result, Quantity(remaining)
+	result.RemainingDemand = remaining
+	return result, remaining
 }
 
 // createPlannedOrders generates planned orders for net requirements
@@ -337,14 +348,14 @@ func (e *Engine) createPlannedOrders(netRequirements []NetRequirement) []Planned
 	
 	for _, req := range netRequirements {
 		// Apply lot sizing rules (simplified - would need item master data)
-		orderQty := decimal.Decimal(req.Quantity)
+		orderQty := req.Quantity
 		
 		// Calculate start date (simplified - assumes 30 day lead time)
 		startDate := req.NeedDate.Add(-30 * 24 * time.Hour)
 		
 		order := PlannedOrder{
 			PartNumber:   req.PartNumber,
-			Quantity:     Quantity(orderQty),
+			Quantity:     orderQty,
 			StartDate:    startDate,
 			DueDate:      req.NeedDate,
 			DemandTrace:  req.DemandTrace,
@@ -414,7 +425,15 @@ func (e *Engine) cleanCacheIfNeeded() {
 	}
 }
 
-// Helper method to convert Quantity to decimal.Decimal
-func (q Quantity) Decimal() decimal.Decimal {
-	return decimal.Decimal(q)
+// AnalyzeCriticalPath performs critical path analysis for a given demand
+func (e *Engine) AnalyzeCriticalPath(ctx context.Context, demand DemandRequirement, topN int) (*CriticalPathAnalysis, error) {
+	analyzer := NewCriticalPathAnalyzer(e)
+	return analyzer.AnalyzeCriticalPath(ctx, demand.PartNumber, demand.TargetSerial, demand.Location, topN)
 }
+
+// AnalyzeCriticalPathForPart performs critical path analysis for a specific part
+func (e *Engine) AnalyzeCriticalPathForPart(ctx context.Context, partNumber PartNumber, targetSerial string, location string, topN int) (*CriticalPathAnalysis, error) {
+	analyzer := NewCriticalPathAnalyzer(e)
+	return analyzer.AnalyzeCriticalPath(ctx, partNumber, targetSerial, location, topN)
+}
+

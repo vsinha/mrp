@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-
-	"github.com/shopspring/decimal"
 )
 
 type InventoryRepository struct {
@@ -86,9 +84,8 @@ func (r *InventoryRepository) UpdateInventoryAllocation(ctx context.Context, all
 			// Update lot inventory
 			for i := range r.lotInventory {
 				if r.lotInventory[i].LotNumber == alloc.LotNumber && r.lotInventory[i].Location == alloc.Location {
-					newQty := decimal.Decimal(r.lotInventory[i].Quantity).Sub(decimal.Decimal(alloc.Quantity))
-					r.lotInventory[i].Quantity = Quantity(newQty)
-					if newQty.IsZero() {
+					r.lotInventory[i].Quantity = r.lotInventory[i].Quantity - alloc.Quantity
+					if r.lotInventory[i].Quantity == 0 {
 						r.lotInventory[i].Status = Allocated
 					}
 					break
