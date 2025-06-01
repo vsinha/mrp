@@ -1,0 +1,159 @@
+package services
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/vsinha/mrp/pkg/domain/entities"
+	"github.com/vsinha/mrp/pkg/domain/repositories"
+)
+
+// AllocationContext holds allocation information for a part
+type AllocationContext struct {
+	AllocatedQty    entities.Quantity
+	RemainingDemand entities.Quantity
+	HasAllocation   bool
+}
+
+// BOMNodeContext provides context information during BOM traversal
+type BOMNodeContext struct {
+	PartNumber        entities.PartNumber
+	Item              *entities.Item
+	Quantity          entities.Quantity
+	TargetSerial      string
+	Location          string
+	Level             int
+	AllocationContext *AllocationContext // Optional allocation info
+}
+
+// BOMNodeVisitor defines the interface for processing nodes during BOM traversal
+type BOMNodeVisitor interface {
+	// VisitNode is called for each node in the BOM structure
+	// Returns data to be passed to children and whether to continue traversal
+	VisitNode(ctx context.Context, nodeCtx BOMNodeContext) (interface{}, bool, error)
+	
+	// ProcessChildren is called after visiting all children
+	// Receives the node context, data from VisitNode, and results from children
+	ProcessChildren(ctx context.Context, nodeCtx BOMNodeContext, nodeData interface{}, childResults []interface{}) (interface{}, error)
+}
+
+// BOMTraverser provides common BOM traversal logic with alternate selection
+type BOMTraverser struct {
+	bomRepo           repositories.BOMRepository
+	itemRepo          repositories.ItemRepository
+	alternateSelector *AlternateSelector
+	allocationMap     map[string]*AllocationContext // key: partNumber|location
+}
+
+// NewBOMTraverser creates a new BOM traverser
+func NewBOMTraverser(
+	bomRepo repositories.BOMRepository,
+	itemRepo repositories.ItemRepository,
+	alternateSelector *AlternateSelector,
+) *BOMTraverser {
+	return &BOMTraverser{
+		bomRepo:           bomRepo,
+		itemRepo:          itemRepo,
+		alternateSelector: alternateSelector,
+		allocationMap:     make(map[string]*AllocationContext),
+	}
+}
+
+// SetAllocationContext updates the allocation information for parts
+func (bt *BOMTraverser) SetAllocationContext(allocations []entities.AllocationResult) {
+	bt.allocationMap = make(map[string]*AllocationContext)
+	for _, alloc := range allocations {
+		key := fmt.Sprintf("%s|%s", alloc.PartNumber, alloc.Location)
+		bt.allocationMap[key] = &AllocationContext{
+			AllocatedQty:    alloc.AllocatedQty,
+			RemainingDemand: alloc.RemainingDemand,
+			HasAllocation:   alloc.AllocatedQty > 0,
+		}
+	}
+}
+
+// ClearAllocationContext removes allocation information
+func (bt *BOMTraverser) ClearAllocationContext() {
+	bt.allocationMap = make(map[string]*AllocationContext)
+}
+
+// TraverseBOM performs BOM traversal with alternate selection using the visitor pattern
+func (bt *BOMTraverser) TraverseBOM(
+	ctx context.Context,
+	partNumber entities.PartNumber,
+	targetSerial string,
+	location string,
+	quantity entities.Quantity,
+	level int,
+	visitor BOMNodeVisitor,
+) (interface{}, error) {
+	// Get item master data
+	item, err := bt.itemRepo.GetItem(partNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get item %s: %w", partNumber, err)
+	}
+
+	// Get allocation context for this part
+	key := fmt.Sprintf("%s|%s", partNumber, location)
+	allocationCtx := bt.allocationMap[key]
+
+	// Create node context
+	nodeCtx := BOMNodeContext{
+		PartNumber:        partNumber,
+		Item:              item,
+		Quantity:          quantity,
+		TargetSerial:      targetSerial,
+		Location:          location,
+		Level:             level,
+		AllocationContext: allocationCtx,
+	}
+
+	// Visit this node
+	nodeData, shouldContinue, err := visitor.VisitNode(ctx, nodeCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to visit node %s: %w", partNumber, err)
+	}
+
+	if !shouldContinue {
+		// Visitor decided to stop traversal at this node
+		return visitor.ProcessChildren(ctx, nodeCtx, nodeData, nil)
+	}
+
+	// Get alternate groups and select best alternates
+	alternateGroups, err := bt.bomRepo.GetAlternateGroups(partNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get alternate groups for %s: %w", partNumber, err)
+	}
+
+	var childResults []interface{}
+
+	// For each FindNumber group, select best alternate and traverse
+	for findNumber := range alternateGroups {
+		effectiveAlternates, err := bt.bomRepo.GetEffectiveAlternates(partNumber, findNumber, targetSerial)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get effective alternates for %s find %d: %w", partNumber, findNumber, err)
+		}
+
+		if len(effectiveAlternates) == 0 {
+			continue // No effective alternates for this serial
+		}
+
+		// Select the best alternate from effective ones
+		selectedAlternate := bt.alternateSelector.SelectBestAlternate(effectiveAlternates)
+		if selectedAlternate == nil {
+			continue // No suitable alternate found
+		}
+
+		// Recursively traverse the selected alternate
+		childQty := selectedAlternate.QtyPer * quantity
+		childResult, err := bt.TraverseBOM(ctx, selectedAlternate.ChildPN, targetSerial, location, childQty, level+1, visitor)
+		if err != nil {
+			return nil, fmt.Errorf("failed to traverse child %s: %w", selectedAlternate.ChildPN, err)
+		}
+
+		childResults = append(childResults, childResult)
+	}
+
+	// Let visitor process the children results
+	return visitor.ProcessChildren(ctx, nodeCtx, nodeData, childResults)
+}

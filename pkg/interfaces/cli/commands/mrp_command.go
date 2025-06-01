@@ -128,8 +128,10 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 		return fmt.Errorf("failed to load demands into repository: %w", err)
 	}
 
-	// Create MRP service
+	// Create services
 	mrpService := services.NewMRPService(bomRepo, bomRepo, inventoryRepo, demandRepo)
+	criticalPathService := services.NewCriticalPathService(bomRepo, bomRepo, inventoryRepo, nil)
+	orchestrator := services.NewPlanningOrchestrator(mrpService, criticalPathService)
 
 	if c.config.Verbose {
 		fmt.Println("⚡ Using optimized MRP service with clean architecture")
@@ -162,7 +164,7 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 		criticalPathStartTime := time.Now()
 
 		for _, demand := range demands {
-			analysis, err := mrpService.AnalyzeCriticalPath(ctx, demand, c.config.TopPaths)
+			analysis, err := orchestrator.AnalyzeCriticalPathWithMRPResults(ctx, demand.PartNumber, demand.TargetSerial, demand.Location, c.config.TopPaths, result)
 			if err != nil {
 				fmt.Printf("Warning: Failed to analyze critical path for %s: %v\n", demand.PartNumber, err)
 				continue

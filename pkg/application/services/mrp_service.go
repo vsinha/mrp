@@ -23,14 +23,13 @@ type EngineConfig struct {
 
 // MRPService implements the MRP planning logic using clean architecture
 type MRPService struct {
-	bomRepo         repositories.BOMRepository
-	itemRepo        repositories.ItemRepository
-	inventoryRepo   repositories.InventoryRepository
-	demandRepo      repositories.DemandRepository
-	serialComp      *services.SerialComparator
-	criticalPathSvc *CriticalPathService
-	alternateSelector *AlternateSelector
-	config          EngineConfig
+	bomRepo       repositories.BOMRepository
+	itemRepo      repositories.ItemRepository
+	inventoryRepo repositories.InventoryRepository
+	demandRepo    repositories.DemandRepository
+	serialComp    *services.SerialComparator
+	bomTraverser  *BOMTraverser
+	config        EngineConfig
 
 	// Memoization cache for BOM explosions
 	explosionCache map[dto.ExplosionCacheKey]*dto.ExplosionResult
@@ -59,19 +58,18 @@ func NewMRPServiceWithConfig(
 	config EngineConfig,
 ) *MRPService {
 	serialComp := services.NewSerialComparator()
-	criticalPathSvc := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, serialComp)
 	alternateSelector := NewAlternateSelector(inventoryRepo, itemRepo)
+	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, alternateSelector)
 
 	return &MRPService{
-		bomRepo:         bomRepo,
-		itemRepo:        itemRepo,
-		inventoryRepo:   inventoryRepo,
-		demandRepo:      demandRepo,
-		serialComp:      serialComp,
-		criticalPathSvc: criticalPathSvc,
-		alternateSelector: alternateSelector,
-		config:          config,
-		explosionCache:  make(map[dto.ExplosionCacheKey]*dto.ExplosionResult),
+		bomRepo:       bomRepo,
+		itemRepo:      itemRepo,
+		inventoryRepo: inventoryRepo,
+		demandRepo:    demandRepo,
+		serialComp:    serialComp,
+		bomTraverser:  bomTraverser,
+		config:        config,
+		explosionCache: make(map[dto.ExplosionCacheKey]*dto.ExplosionResult),
 	}
 }
 
@@ -137,7 +135,7 @@ func (s *MRPService) ExplodeDemand(ctx context.Context, demands []*entities.Dema
 	return result, nil
 }
 
-// explodeRequirements recursively explodes a part's BOM with memoization
+// explodeRequirements recursively explodes a part's BOM with memoization using BOMTraverser
 func (s *MRPService) explodeRequirements(ctx context.Context, pn entities.PartNumber, targetSerial string,
 	needDate time.Time, demandTrace string, location string, quantity entities.Quantity) ([]*entities.GrossRequirement, error) {
 
@@ -169,63 +167,19 @@ func (s *MRPService) explodeRequirements(ctx context.Context, pn entities.PartNu
 		return scaledRequirements, nil
 	}
 
-	// Get item master data
+	// Use BOMTraverser with MRPVisitor to perform the explosion
+	visitor := NewMRPVisitor(demandTrace, needDate)
+	result, err := s.bomTraverser.TraverseBOM(ctx, pn, targetSerial, location, quantity, 0, visitor)
+	if err != nil {
+		return nil, fmt.Errorf("failed to traverse BOM for %s: %w", pn, err)
+	}
+
+	requirements := result.([]*entities.GrossRequirement)
+
+	// Get item master data for caching
 	item, err := s.itemRepo.GetItem(pn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get item %s: %w", pn, err)
-	}
-
-	// Get alternate groups for this part and target serial
-	alternateGroups, err := s.bomRepo.GetAlternateGroups(pn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get alternate groups for %s: %w", pn, err)
-	}
-
-	var requirements []*entities.GrossRequirement
-
-	// Always create requirement for this part itself
-	req := &entities.GrossRequirement{
-		PartNumber:   pn,
-		Quantity:     quantity,
-		NeedDate:     needDate,
-		DemandTrace:  demandTrace,
-		Location:     location,
-		TargetSerial: targetSerial,
-	}
-	requirements = append(requirements, req)
-
-	// If this part has BOM lines, select best alternates and explode child requirements
-	if len(alternateGroups) > 0 {
-		for findNumber := range alternateGroups {
-			// Filter alternates by serial effectivity for this target serial
-			effectiveAlternates, err := s.bomRepo.GetEffectiveAlternates(pn, findNumber, targetSerial)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get effective alternates for %s find %d: %w", pn, findNumber, err)
-			}
-
-			if len(effectiveAlternates) == 0 {
-				continue // No effective alternates for this serial
-			}
-
-			// Select the best alternate from the effective ones
-			selectedAlternate := s.alternateSelector.SelectBestAlternate(effectiveAlternates)
-			if selectedAlternate == nil {
-				continue // No suitable alternate found
-			}
-
-			// Explode the selected alternate
-			childQty := selectedAlternate.QtyPer * quantity
-			childNeedDate := needDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour)
-			childTrace := demandTrace + " -> " + string(selectedAlternate.ChildPN)
-
-			childRequirements, err := s.explodeRequirements(ctx, selectedAlternate.ChildPN, targetSerial,
-				childNeedDate, childTrace, location, childQty)
-			if err != nil {
-				return nil, fmt.Errorf("failed to explode child %s: %w", selectedAlternate.ChildPN, err)
-			}
-
-			requirements = append(requirements, childRequirements...)
-		}
 	}
 
 	// Cache the base requirements (without scaling)
@@ -454,12 +408,3 @@ func (s *MRPService) cleanCacheIfNeeded() {
 	}
 }
 
-// AnalyzeCriticalPath performs critical path analysis for a given demand
-func (s *MRPService) AnalyzeCriticalPath(ctx context.Context, demand *entities.DemandRequirement, topN int) (*entities.CriticalPathAnalysis, error) {
-	return s.criticalPathSvc.AnalyzeCriticalPath(ctx, demand.PartNumber, demand.TargetSerial, demand.Location, topN)
-}
-
-// AnalyzeCriticalPathForPart performs critical path analysis for a specific part
-func (s *MRPService) AnalyzeCriticalPathForPart(ctx context.Context, partNumber entities.PartNumber, targetSerial string, location string, topN int) (*entities.CriticalPathAnalysis, error) {
-	return s.criticalPathSvc.AnalyzeCriticalPath(ctx, partNumber, targetSerial, location, topN)
-}

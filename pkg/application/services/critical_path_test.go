@@ -17,10 +17,12 @@ func TestMRPService_CriticalPathAnalysis_SimpleCase(t *testing.T) {
 	demandRepo := memory.NewDemandRepository()
 
 	// Create MRP service
-	service := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	mrpService := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	criticalPathService := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
+	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService)
 
 	// Analyze critical path for rocket engine
-	analysis, err := service.AnalyzeCriticalPathForPart(ctx, "ROCKET_ENGINE", "AS507", "KENNEDY", 5)
+	analysis, err := orchestrator.AnalyzeCriticalPathForPart(ctx, "ROCKET_ENGINE", "AS507", "KENNEDY", 5)
 	if err != nil {
 		t.Fatalf("Critical path analysis failed: %v", err)
 	}
@@ -83,10 +85,12 @@ func TestMRPService_CriticalPathAnalysis_WithInventory(t *testing.T) {
 		t.Fatalf("Failed to save inventory lot: %v", err)
 	}
 
-	service := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	mrpService := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	criticalPathService := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
+	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService)
 
 	// Analyze critical path
-	analysis, err := service.AnalyzeCriticalPathForPart(ctx, "ROCKET_ENGINE", "AS507", "KENNEDY", 3)
+	analysis, err := orchestrator.AnalyzeCriticalPathForPart(ctx, "ROCKET_ENGINE", "AS507", "KENNEDY", 3)
 	if err != nil {
 		t.Fatalf("Critical path analysis failed: %v", err)
 	}
@@ -255,10 +259,12 @@ func TestMRPService_CriticalPathAnalysis_MultiplePaths(t *testing.T) {
 		}
 	}
 
-	service := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	mrpService := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	criticalPathService := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
+	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService)
 
 	// Analyze critical path asking for top 5 paths
-	analysis, err := service.AnalyzeCriticalPathForPart(ctx, "COMPLEX_ASSEMBLY", "SN001", "FACTORY", 5)
+	analysis, err := orchestrator.AnalyzeCriticalPathForPart(ctx, "COMPLEX_ASSEMBLY", "SN001", "FACTORY", 5)
 	if err != nil {
 		t.Fatalf("Critical path analysis failed: %v", err)
 	}
