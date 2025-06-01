@@ -25,6 +25,22 @@ func NewInMemoryBOMRepository() *InMemoryBOMRepository {
 	}
 }
 
+// NewTestBOMRepository creates a compact BOM repository for testing with reasonable defaults
+func NewTestBOMRepository() *CompactBOMRepository {
+	return NewCompactBOMRepository(20, 20) // Default size for most tests
+}
+
+// NewTestEngine creates an optimized MRP engine for testing
+func NewTestEngine(bomRepo BOMRepository, inventoryRepo InventoryRepository) MRPEngine {
+	config := OptimizationConfig{
+		EnableGCPacing:       true,
+		CacheCleanupInterval: 5 * time.Minute,
+		MaxCacheEntries:      1000, // Smaller for tests
+		BatchSize:           100,   // Smaller for tests
+	}
+	return NewOptimizedEngine(bomRepo, inventoryRepo, config)
+}
+
 // AddItem adds an item to the repository
 func (r *InMemoryBOMRepository) AddItem(item Item) {
 	r.items[item.PartNumber] = &item
@@ -173,15 +189,15 @@ func (r *InMemoryInventoryRepository) UpdateInventoryAllocation(ctx context.Cont
 	return nil
 }
 
-// buildAerospaceTestData builds the aerospace test scenario from the specification
-func buildAerospaceTestData() (*InMemoryBOMRepository, *InMemoryInventoryRepository) {
-	bomRepo := NewInMemoryBOMRepository()
+// buildAerospaceTestData builds the aerospace test scenario from the specification  
+func buildAerospaceTestData() (*CompactBOMRepository, *InMemoryInventoryRepository) {
+	bomRepo := NewCompactBOMRepository(6, 5) // 6 items, 5 BOM lines
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	// Add items
 	bomRepo.AddItem(Item{
-		PartNumber:      "FALCON_9_BLOCK5",
-		Description:     "Falcon 9 Block 5 Complete Vehicle",
+		PartNumber:      "SATURN_V",
+		Description:     "Saturn V Launch Vehicle",
 		LeadTimeDays:    180,
 		LotSizeRule:     LotForLot,
 		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
@@ -190,8 +206,8 @@ func buildAerospaceTestData() (*InMemoryBOMRepository, *InMemoryInventoryReposit
 	})
 	
 	bomRepo.AddItem(Item{
-		PartNumber:      "MERLIN_ENGINE_1D",
-		Description:     "Merlin 1D Engine Assembly",
+		PartNumber:      "F1_ENGINE",
+		Description:     "F-1 Engine Assembly",
 		LeadTimeDays:    120,
 		LotSizeRule:     MinimumQty,
 		MinOrderQty:     Quantity(decimal.NewFromInt(10)),
@@ -200,8 +216,8 @@ func buildAerospaceTestData() (*InMemoryBOMRepository, *InMemoryInventoryReposit
 	})
 	
 	bomRepo.AddItem(Item{
-		PartNumber:      "MERLIN_VAC_V1",
-		Description:     "Merlin Vacuum Engine V1",
+		PartNumber:      "J2_ENGINE_V1",
+		Description:     "J-2 Engine V1",
 		LeadTimeDays:    90,
 		LotSizeRule:     LotForLot,
 		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
@@ -210,8 +226,8 @@ func buildAerospaceTestData() (*InMemoryBOMRepository, *InMemoryInventoryReposit
 	})
 	
 	bomRepo.AddItem(Item{
-		PartNumber:      "MERLIN_VAC_V2",
-		Description:     "Merlin Vacuum Engine V2",
+		PartNumber:      "J2_ENGINE_V2",
+		Description:     "J-2 Engine V2",
 		LeadTimeDays:    90,
 		LotSizeRule:     LotForLot,
 		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
@@ -220,8 +236,8 @@ func buildAerospaceTestData() (*InMemoryBOMRepository, *InMemoryInventoryReposit
 	})
 	
 	bomRepo.AddItem(Item{
-		PartNumber:      "TURBOPUMP_ASSEMBLY_V1",
-		Description:     "Turbopump Assembly V1",
+		PartNumber:      "F1_TURBOPUMP_V1",
+		Description:     "F-1 Turbopump Assembly V1",
 		LeadTimeDays:    60,
 		LotSizeRule:     LotForLot,
 		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
@@ -230,8 +246,8 @@ func buildAerospaceTestData() (*InMemoryBOMRepository, *InMemoryInventoryReposit
 	})
 	
 	bomRepo.AddItem(Item{
-		PartNumber:      "TURBOPUMP_ASSEMBLY_V2",
-		Description:     "Turbopump Assembly V2",
+		PartNumber:      "F1_TURBOPUMP_V2",
+		Description:     "F-1 Turbopump Assembly V2",
 		LeadTimeDays:    60,
 		LotSizeRule:     LotForLot,
 		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
@@ -241,60 +257,60 @@ func buildAerospaceTestData() (*InMemoryBOMRepository, *InMemoryInventoryReposit
 	
 	// Add BOM lines with serial effectivity
 	bomRepo.AddBOMLine(BOMLine{
-		ParentPN:     "FALCON_9_BLOCK5",
-		ChildPN:      "MERLIN_ENGINE_1D",
-		QtyPer:       Quantity(decimal.NewFromInt(9)),
+		ParentPN:     "SATURN_V",
+		ChildPN:      "F1_ENGINE",
+		QtyPer:       Quantity(decimal.NewFromInt(5)),
 		FindNumber:   100,
-		Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
+		Effectivity:  SerialEffectivity{FromSerial: "AS501", ToSerial: ""},
 	})
 	
 	bomRepo.AddBOMLine(BOMLine{
-		ParentPN:     "FALCON_9_BLOCK5",
-		ChildPN:      "MERLIN_VAC_V1",
-		QtyPer:       Quantity(decimal.NewFromInt(1)),
+		ParentPN:     "SATURN_V",
+		ChildPN:      "J2_ENGINE_V1",
+		QtyPer:       Quantity(decimal.NewFromInt(6)),
 		FindNumber:   200,
-		Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: "SN039"},
+		Effectivity:  SerialEffectivity{FromSerial: "AS501", ToSerial: "AS506"},
 	})
 	
 	bomRepo.AddBOMLine(BOMLine{
-		ParentPN:     "FALCON_9_BLOCK5",
-		ChildPN:      "MERLIN_VAC_V2",
-		QtyPer:       Quantity(decimal.NewFromInt(1)),
+		ParentPN:     "SATURN_V",
+		ChildPN:      "J2_ENGINE_V2",
+		QtyPer:       Quantity(decimal.NewFromInt(6)),
 		FindNumber:   200,
-		Effectivity:  SerialEffectivity{FromSerial: "SN040", ToSerial: ""},
+		Effectivity:  SerialEffectivity{FromSerial: "AS507", ToSerial: ""},
 	})
 	
 	bomRepo.AddBOMLine(BOMLine{
-		ParentPN:     "MERLIN_ENGINE_1D",
-		ChildPN:      "TURBOPUMP_ASSEMBLY_V1",
-		QtyPer:       Quantity(decimal.NewFromInt(2)),
+		ParentPN:     "F1_ENGINE",
+		ChildPN:      "F1_TURBOPUMP_V1",
+		QtyPer:       Quantity(decimal.NewFromInt(1)),
 		FindNumber:   300,
-		Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: "SN024"},
+		Effectivity:  SerialEffectivity{FromSerial: "AS501", ToSerial: "AS505"},
 	})
 	
 	bomRepo.AddBOMLine(BOMLine{
-		ParentPN:     "MERLIN_ENGINE_1D",
-		ChildPN:      "TURBOPUMP_ASSEMBLY_V2",
-		QtyPer:       Quantity(decimal.NewFromInt(2)),
+		ParentPN:     "F1_ENGINE",
+		ChildPN:      "F1_TURBOPUMP_V2",
+		QtyPer:       Quantity(decimal.NewFromInt(1)),
 		FindNumber:   300,
-		Effectivity:  SerialEffectivity{FromSerial: "SN025", ToSerial: ""},
+		Effectivity:  SerialEffectivity{FromSerial: "AS506", ToSerial: ""},
 	})
 	
 	// Add inventory
 	baseDate := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
 	
 	inventoryRepo.AddSerializedInventory(SerializedInventory{
-		PartNumber:   "MERLIN_ENGINE_1D",
-		SerialNumber: "E1001",
-		Location:     "MCGREGOR",
+		PartNumber:   "F1_ENGINE",
+		SerialNumber: "F1_001",
+		Location:     "MICHOUD",
 		Status:       Available,
 		ReceiptDate:  baseDate,
 	})
 	
 	inventoryRepo.AddSerializedInventory(SerializedInventory{
-		PartNumber:   "MERLIN_ENGINE_1D",
-		SerialNumber: "E1002",
-		Location:     "HAWTHORNE",
+		PartNumber:   "F1_ENGINE",
+		SerialNumber: "F1_002",
+		Location:     "STENNIS",
 		Status:       Allocated,
 		ReceiptDate:  baseDate.Add(4 * 24 * time.Hour),
 	})

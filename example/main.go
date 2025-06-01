@@ -13,25 +13,31 @@ func main() {
 	ctx := context.Background()
 	
 	// Create repositories
-	bomRepo := mrp.NewInMemoryBOMRepository()
+	bomRepo := mrp.NewCompactBOMRepository(4, 3) // 4 items, 3 BOM lines
 	inventoryRepo := mrp.NewInMemoryInventoryRepository()
 	
 	// Set up a simple rocket engine BOM
 	setupRocketEngineBOM(bomRepo, inventoryRepo)
 	
 	// Create MRP engine
-	engine := mrp.NewEngine(bomRepo, inventoryRepo)
+	config := mrp.OptimizationConfig{
+		EnableGCPacing:       true,
+		CacheCleanupInterval: 5 * time.Minute,
+		MaxCacheEntries:      1000,
+		BatchSize:           100,
+	}
+	engine := mrp.NewOptimizedEngine(bomRepo, inventoryRepo, config)
 	
 	// Define demand for a rocket launch
 	needDate := time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)
 	demands := []mrp.DemandRequirement{
 		{
 			PartNumber:   "ROCKET_ENGINE",
-			Quantity:     mrp.Quantity(decimal.NewFromInt(9)), // 9 engines for first stage
+			Quantity:     mrp.Quantity(decimal.NewFromInt(5)), // 5 F-1 engines for first stage
 			NeedDate:     needDate,
-			DemandSource: "MISSION_MARS_001",
+			DemandSource: "APOLLO_12_MISSION",
 			Location:     "LAUNCH_PAD_39A",
-			TargetSerial: "SN100", // Future serial using latest config
+			TargetSerial: "AS507", // Apollo 12 Saturn V serial
 		},
 	}
 	
@@ -99,7 +105,7 @@ func main() {
 	fmt.Println("✅ MRP analysis complete!")
 }
 
-func setupRocketEngineBOM(bomRepo *mrp.InMemoryBOMRepository, inventoryRepo *mrp.InMemoryInventoryRepository) {
+func setupRocketEngineBOM(bomRepo *mrp.CompactBOMRepository, inventoryRepo *mrp.InMemoryInventoryRepository) {
 	// Add items
 	bomRepo.AddItem(mrp.Item{
 		PartNumber:      "ROCKET_ENGINE",
@@ -172,7 +178,7 @@ func setupRocketEngineBOM(bomRepo *mrp.InMemoryBOMRepository, inventoryRepo *mrp
 	// Have 2 engines in stock
 	inventoryRepo.AddSerializedInventory(mrp.SerializedInventory{
 		PartNumber:   "ROCKET_ENGINE",
-		SerialNumber: "E9001",
+		SerialNumber: "F1_001",
 		Location:     "LAUNCH_PAD_39A",
 		Status:       mrp.Available,
 		ReceiptDate:  baseDate,
@@ -180,7 +186,7 @@ func setupRocketEngineBOM(bomRepo *mrp.InMemoryBOMRepository, inventoryRepo *mrp
 	
 	inventoryRepo.AddSerializedInventory(mrp.SerializedInventory{
 		PartNumber:   "ROCKET_ENGINE",
-		SerialNumber: "E9002",
+		SerialNumber: "F1_002",
 		Location:     "LAUNCH_PAD_39A",
 		Status:       mrp.Available,
 		ReceiptDate:  baseDate.Add(5 * 24 * time.Hour),

@@ -12,7 +12,7 @@ import (
 func BenchmarkMRPEngine_SingleLevel(b *testing.B) {
 	ctx := context.Background()
 	bomRepo, inventoryRepo := setupSimpleBOM()
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	demands := []DemandRequirement{
 		{
@@ -37,7 +37,7 @@ func BenchmarkMRPEngine_SingleLevel(b *testing.B) {
 func BenchmarkMRPEngine_DeepBOM(b *testing.B) {
 	ctx := context.Background()
 	bomRepo, inventoryRepo := setupDeepBOM(10) // 10 levels deep
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	demands := []DemandRequirement{
 		{
@@ -62,7 +62,7 @@ func BenchmarkMRPEngine_DeepBOM(b *testing.B) {
 func BenchmarkMRPEngine_WideBOM(b *testing.B) {
 	ctx := context.Background()
 	bomRepo, inventoryRepo := setupWideBOM(50) // 50 children per parent
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	demands := []DemandRequirement{
 		{
@@ -87,16 +87,16 @@ func BenchmarkMRPEngine_WideBOM(b *testing.B) {
 func BenchmarkMRPEngine_SerialEffectivity(b *testing.B) {
 	ctx := context.Background()
 	bomRepo, inventoryRepo := buildAerospaceTestData()
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	demands := []DemandRequirement{
 		{
-			PartNumber:   "FALCON_9_BLOCK5",
+			PartNumber:   "SATURN_V",
 			Quantity:     Quantity(decimal.NewFromInt(1)),
 			NeedDate:     time.Date(2025, 8, 15, 0, 0, 0, 0, time.UTC),
 			DemandSource: "BENCHMARK",
-			Location:     "HAWTHORNE",
-			TargetSerial: "SN075",
+			Location:     "KENNEDY",
+			TargetSerial: "AS506",
 		},
 	}
 	
@@ -111,8 +111,8 @@ func BenchmarkMRPEngine_SerialEffectivity(b *testing.B) {
 
 // Helper functions for benchmark setups
 
-func setupSimpleBOM() (*InMemoryBOMRepository, *InMemoryInventoryRepository) {
-	bomRepo := NewInMemoryBOMRepository()
+func setupSimpleBOM() (*CompactBOMRepository, *InMemoryInventoryRepository) {
+	bomRepo := NewTestBOMRepository()
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	bomRepo.AddItem(Item{
@@ -146,8 +146,8 @@ func setupSimpleBOM() (*InMemoryBOMRepository, *InMemoryInventoryRepository) {
 	return bomRepo, inventoryRepo
 }
 
-func setupDeepBOM(levels int) (*InMemoryBOMRepository, *InMemoryInventoryRepository) {
-	bomRepo := NewInMemoryBOMRepository()
+func setupDeepBOM(levels int) (*CompactBOMRepository, *InMemoryInventoryRepository) {
+	bomRepo := NewCompactBOMRepository(levels, levels-1) // levels items, levels-1 BOM lines
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	// Create items for each level
@@ -179,8 +179,8 @@ func setupDeepBOM(levels int) (*InMemoryBOMRepository, *InMemoryInventoryReposit
 	return bomRepo, inventoryRepo
 }
 
-func setupWideBOM(width int) (*InMemoryBOMRepository, *InMemoryInventoryRepository) {
-	bomRepo := NewInMemoryBOMRepository()
+func setupWideBOM(width int) (*CompactBOMRepository, *InMemoryInventoryRepository) {
+	bomRepo := NewCompactBOMRepository(width+1, width) // width+1 items (including top assembly), width BOM lines
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	// Create top assembly

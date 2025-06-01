@@ -36,8 +36,8 @@ func NewLargeBOMSynthesizer(config LargeBOMConfig) *LargeBOMSynthesizer {
 }
 
 // SynthesizeAerospaceBOM creates a realistic aerospace BOM structure
-func (s *LargeBOMSynthesizer) SynthesizeAerospaceBOM() (*InMemoryBOMRepository, *InMemoryInventoryRepository) {
-	bomRepo := NewInMemoryBOMRepository()
+func (s *LargeBOMSynthesizer) SynthesizeAerospaceBOM() (*CompactBOMRepository, *InMemoryInventoryRepository) {
+	bomRepo := NewCompactBOMRepository(s.config.TotalParts, s.config.TotalParts*2) // Conservative estimate for BOM lines
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	fmt.Printf("🏭 Synthesizing aerospace BOM with %d parts, %d levels...\n", 
@@ -152,7 +152,7 @@ func (s *LargeBOMSynthesizer) generatePartsForLevel(level, count int) []PartInfo
 }
 
 // generateBOMRelationships creates parent-child relationships between parts
-func (s *LargeBOMSynthesizer) generateBOMRelationships(bomRepo *InMemoryBOMRepository, partsByLevel [][]PartInfo) int {
+func (s *LargeBOMSynthesizer) generateBOMRelationships(bomRepo *CompactBOMRepository, partsByLevel [][]PartInfo) int {
 	bomLineCount := 0
 	
 	// Create relationships from each level to the next
@@ -459,7 +459,7 @@ func (s *LargeBOMSynthesizer) shouldBeSerialized(partType PartType, criticality 
 }
 
 func (s *LargeBOMSynthesizer) generateLocation() string {
-	locations := []string{"HAWTHORNE", "MCGREGOR", "CAPE_CANAVERAL", "BOCA_CHICA", "VANDENBERG"}
+	locations := []string{"HUNTSVILLE", "STENNIS", "KENNEDY", "MICHOUD", "WALLOPS"}
 	return locations[s.rng.Intn(len(locations))]
 }
 
@@ -494,7 +494,7 @@ func BenchmarkMRPEngine_30KParts_10Levels(b *testing.B) {
 	synthesizer := NewLargeBOMSynthesizer(config)
 	bomRepo, inventoryRepo := synthesizer.SynthesizeAerospaceBOM()
 	
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	// Create demand for top-level assembly
 	demands := []DemandRequirement{
@@ -503,7 +503,7 @@ func BenchmarkMRPEngine_30KParts_10Levels(b *testing.B) {
 			Quantity:     Quantity(decimal.NewFromInt(1)),
 			NeedDate:     time.Now().Add(180 * 24 * time.Hour),
 			DemandSource: "LARGE_SCALE_BENCHMARK",
-			Location:     "HAWTHORNE",
+			Location:     "KENNEDY",
 			TargetSerial: "SN100",
 		},
 	}
@@ -543,7 +543,7 @@ func BenchmarkMRPEngine_50KParts_12Levels(b *testing.B) {
 	synthesizer := NewLargeBOMSynthesizer(config)
 	bomRepo, inventoryRepo := synthesizer.SynthesizeAerospaceBOM()
 	
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	demands := []DemandRequirement{
 		{
@@ -551,7 +551,7 @@ func BenchmarkMRPEngine_50KParts_12Levels(b *testing.B) {
 			Quantity:     Quantity(decimal.NewFromInt(1)),
 			NeedDate:     time.Now().Add(200 * 24 * time.Hour),
 			DemandSource: "EXTREME_SCALE_BENCHMARK",
-			Location:     "HAWTHORNE",
+			Location:     "KENNEDY",
 			TargetSerial: "SN200",
 		},
 	}
@@ -610,14 +610,14 @@ func TestLargeBOMSynthesis(t *testing.T) {
 	t.Logf("Generated BOM with %d parts and %d BOM lines", len(allItems), len(allBOMLines))
 	
 	// Test a small MRP run
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "L0_ASM_000000",
 			Quantity:     Quantity(decimal.NewFromInt(1)),
 			NeedDate:     time.Now().Add(60 * 24 * time.Hour),
 			DemandSource: "TEST_SYNTHESIS",
-			Location:     "HAWTHORNE",
+			Location:     "KENNEDY",
 			TargetSerial: "SN001",
 		},
 	}
@@ -673,7 +673,7 @@ func BenchmarkOptimizedMRPEngine_30KParts(b *testing.B) {
 			Quantity:     Quantity(decimal.NewFromInt(1)),
 			NeedDate:     time.Now().Add(180 * 24 * time.Hour),
 			DemandSource: "OPTIMIZED_BENCHMARK",
-			Location:     "HAWTHORNE",
+			Location:     "KENNEDY",
 			TargetSerial: "SN100",
 		},
 	}
@@ -712,7 +712,7 @@ func BenchmarkMemoryUsage_30KParts(b *testing.B) {
 	
 	b.Run("Standard_Engine", func(b *testing.B) {
 		bomRepo, inventoryRepo := synthesizer.SynthesizeAerospaceBOM()
-		engine := NewEngine(bomRepo, inventoryRepo)
+		engine := NewTestEngine(bomRepo, inventoryRepo)
 		
 		demands := []DemandRequirement{
 			{
@@ -720,7 +720,7 @@ func BenchmarkMemoryUsage_30KParts(b *testing.B) {
 				Quantity:     Quantity(decimal.NewFromInt(1)),
 				NeedDate:     time.Now().Add(180 * 24 * time.Hour),
 				DemandSource: "MEMORY_BENCHMARK_STD",
-				Location:     "HAWTHORNE",
+				Location:     "KENNEDY",
 				TargetSerial: "SN100",
 			},
 		}
@@ -779,7 +779,7 @@ func BenchmarkMemoryUsage_30KParts(b *testing.B) {
 				Quantity:     Quantity(decimal.NewFromInt(1)),
 				NeedDate:     time.Now().Add(180 * 24 * time.Hour),
 				DemandSource: "MEMORY_BENCHMARK_OPT",
-				Location:     "HAWTHORNE",
+				Location:     "KENNEDY",
 				TargetSerial: "SN100",
 			},
 		}

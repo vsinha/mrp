@@ -1,0 +1,2 @@
+part_number,quantity,need_date,demand_source,location,target_serial
+APOLLO_CSM,2,1969-07-04,APOLLO_PROGRAM,DOWNEY,CSM107

@@ -1,0 +1,16 @@
+part_number,description,lead_time_days,lot_size_rule,min_order_qty,safety_stock,unit_of_measure
+SATURN_V,Saturn V Launch Vehicle,365,LotForLot,1,0,EA
+F1_ENGINE,F-1 Engine,180,LotForLot,1,1,EA
+J2_ENGINE,J-2 Engine,150,LotForLot,1,1,EA
+S_IC_STAGE,S-IC First Stage,240,LotForLot,1,0,EA
+S_II_STAGE,S-II Second Stage,210,LotForLot,1,0,EA
+S_IVB_STAGE,S-IVB Third Stage,180,LotForLot,1,0,EA
+F1_TURBOPUMP,F-1 Turbopump Assembly,90,LotForLot,1,1,EA
+J2_TURBOPUMP,J-2 Turbopump Assembly,75,LotForLot,1,1,EA
+COMBUSTION_CHAMBER,Engine Combustion Chamber,120,LotForLot,1,0,EA
+NOZZLE_ASSEMBLY,Engine Nozzle Assembly,90,LotForLot,1,0,EA
+VALVE_MAIN,Main Engine Valve,60,MinimumQty,10,5,EA
+INJECTOR_HEAD,Propellant Injector Head,75,LotForLot,1,1,EA
+THRUST_STRUCTURE,Thrust Structure Assembly,150,LotForLot,1,0,EA
+TANK_STRUCTURE,Propellant Tank Structure,120,LotForLot,1,0,EA
+AVIONICS_PACKAGE,Saturn V Avionics Package,90,LotForLot,1,1,EA

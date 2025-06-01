@@ -1,0 +1,16 @@
+part_number,description,lead_time_days,lot_size_rule,min_order_qty,safety_stock,unit_of_measure
+APOLLO_CSM,Apollo Command Service Module,120,LotForLot,1,0,EA
+SPS_ENGINE,Service Propulsion System Engine,90,LotForLot,1,1,EA
+COMMAND_MODULE,Apollo Command Module,75,LotForLot,1,0,EA
+SERVICE_MODULE,Apollo Service Module,60,LotForLot,1,0,EA
+HEAT_SHIELD,Ablative Heat Shield,45,LotForLot,1,0,EA
+REACTION_CONTROL,RCS Thruster Assembly,30,LotForLot,1,1,EA
+PARACHUTE_SYSTEM,Recovery Parachute System,40,LotForLot,1,0,EA
+CM_STRUCTURE,Command Module Structure,50,LotForLot,1,0,EA
+SM_STRUCTURE,Service Module Structure,45,LotForLot,1,0,EA
+SPS_TURBOPUMP,SPS Turbopump Assembly,60,LotForLot,1,0,EA
+SPS_NOZZLE,SPS Engine Nozzle,35,LotForLot,1,0,EA
+RCS_VALVE,RCS Valve Assembly,25,MinimumQty,5,2,EA
+PROPELLANT_TANK,Propellant Tank Assembly,40,LotForLot,1,0,EA
+APOLLO_AVIONICS,Apollo Guidance Computer,50,LotForLot,1,1,EA
+LIFE_SUPPORT,Environmental Control System,35,LotForLot,1,0,EA

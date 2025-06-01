@@ -1,0 +1,365 @@
+package repository
+
+import (
+	"encoding/csv"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/shopspring/decimal"
+	"github.com/vsinha/mrp/pkg/mrp"
+)
+
+// CSVRepository handles loading MRP data from CSV files
+type CSVRepository struct{}
+
+// NewCSVRepository creates a new CSV repository
+func NewCSVRepository() *CSVRepository {
+	return &CSVRepository{}
+}
+
+// LoadItems loads items from a CSV file
+func (r *CSVRepository) LoadItems(filename string) ([]mrp.Item, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open items file %s: %w", filename, err)
+	}
+	defer file.Close()
+	
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read items CSV: %w", err)
+	}
+	
+	if len(records) < 2 {
+		return nil, fmt.Errorf("items CSV must have header and at least one data row")
+	}
+	
+	// Validate header
+	expectedHeader := []string{"part_number", "description", "lead_time_days", "lot_size_rule", "min_order_qty", "safety_stock", "unit_of_measure"}
+	header := records[0]
+	if !validateHeader(header, expectedHeader) {
+		return nil, fmt.Errorf("items CSV header mismatch. Expected: %v, Got: %v", expectedHeader, header)
+	}
+	
+	var items []mrp.Item
+	for i, record := range records[1:] {
+		if len(record) != len(expectedHeader) {
+			return nil, fmt.Errorf("items CSV row %d: expected %d columns, got %d", i+2, len(expectedHeader), len(record))
+		}
+		
+		item, err := parseItem(record)
+		if err != nil {
+			return nil, fmt.Errorf("items CSV row %d: %w", i+2, err)
+		}
+		
+		items = append(items, item)
+	}
+	
+	return items, nil
+}
+
+// LoadBOM loads BOM lines from a CSV file
+func (r *CSVRepository) LoadBOM(filename string) ([]mrp.BOMLine, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open BOM file %s: %w", filename, err)
+	}
+	defer file.Close()
+	
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read BOM CSV: %w", err)
+	}
+	
+	if len(records) < 2 {
+		return nil, fmt.Errorf("BOM CSV must have header and at least one data row")
+	}
+	
+	// Validate header
+	expectedHeader := []string{"parent_pn", "child_pn", "qty_per", "find_number", "from_serial", "to_serial"}
+	header := records[0]
+	if !validateHeader(header, expectedHeader) {
+		return nil, fmt.Errorf("BOM CSV header mismatch. Expected: %v, Got: %v", expectedHeader, header)
+	}
+	
+	var bomLines []mrp.BOMLine
+	for i, record := range records[1:] {
+		if len(record) != len(expectedHeader) {
+			return nil, fmt.Errorf("BOM CSV row %d: expected %d columns, got %d", i+2, len(expectedHeader), len(record))
+		}
+		
+		bomLine, err := parseBOMLine(record)
+		if err != nil {
+			return nil, fmt.Errorf("BOM CSV row %d: %w", i+2, err)
+		}
+		
+		bomLines = append(bomLines, bomLine)
+	}
+	
+	return bomLines, nil
+}
+
+// LoadInventory loads inventory from a CSV file
+func (r *CSVRepository) LoadInventory(filename string) ([]mrp.InventoryLot, []mrp.SerializedInventory, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open inventory file %s: %w", filename, err)
+	}
+	defer file.Close()
+	
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read inventory CSV: %w", err)
+	}
+	
+	if len(records) < 2 {
+		return nil, nil, fmt.Errorf("inventory CSV must have header and at least one data row")
+	}
+	
+	// Validate header
+	expectedHeader := []string{"part_number", "type", "identifier", "location", "quantity", "receipt_date", "status"}
+	header := records[0]
+	if !validateHeader(header, expectedHeader) {
+		return nil, nil, fmt.Errorf("inventory CSV header mismatch. Expected: %v, Got: %v", expectedHeader, header)
+	}
+	
+	var lotInventory []mrp.InventoryLot
+	var serialInventory []mrp.SerializedInventory
+	
+	for i, record := range records[1:] {
+		if len(record) != len(expectedHeader) {
+			return nil, nil, fmt.Errorf("inventory CSV row %d: expected %d columns, got %d", i+2, len(expectedHeader), len(record))
+		}
+		
+		partNumber := mrp.PartNumber(record[0])
+		invType := strings.ToLower(record[1])
+		identifier := record[2]
+		location := record[3]
+		quantityStr := record[4]
+		receiptDateStr := record[5]
+		statusStr := record[6]
+		
+		// Parse common fields
+		receiptDate, err := time.Parse("2006-01-02", receiptDateStr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid receipt_date format in row %d: %s (expected YYYY-MM-DD)", i+2, receiptDateStr)
+		}
+		
+		status, err := parseInventoryStatus(statusStr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid status in row %d: %w", i+2, err)
+		}
+		
+		switch invType {
+		case "lot":
+			quantity, err := decimal.NewFromString(quantityStr)
+			if err != nil {
+				return nil, nil, fmt.Errorf("invalid quantity in row %d: %s", i+2, quantityStr)
+			}
+			
+			lotInventory = append(lotInventory, mrp.InventoryLot{
+				PartNumber:   partNumber,
+				LotNumber:    identifier,
+				Location:     location,
+				Quantity:     mrp.Quantity(quantity),
+				ReceiptDate:  receiptDate,
+				Status:       status,
+			})
+			
+		case "serial":
+			// For serialized inventory, quantity should be 1 (ignore CSV value)
+			serialInventory = append(serialInventory, mrp.SerializedInventory{
+				PartNumber:   partNumber,
+				SerialNumber: identifier,
+				Location:     location,
+				Status:       status,
+				ReceiptDate:  receiptDate,
+			})
+			
+		default:
+			return nil, nil, fmt.Errorf("invalid inventory type in row %d: %s (expected 'lot' or 'serial')", i+2, invType)
+		}
+	}
+	
+	return lotInventory, serialInventory, nil
+}
+
+// LoadDemands loads demand requirements from a CSV file
+func (r *CSVRepository) LoadDemands(filename string) ([]mrp.DemandRequirement, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open demands file %s: %w", filename, err)
+	}
+	defer file.Close()
+	
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read demands CSV: %w", err)
+	}
+	
+	if len(records) < 2 {
+		return nil, fmt.Errorf("demands CSV must have header and at least one data row")
+	}
+	
+	// Validate header
+	expectedHeader := []string{"part_number", "quantity", "need_date", "demand_source", "location", "target_serial"}
+	header := records[0]
+	if !validateHeader(header, expectedHeader) {
+		return nil, fmt.Errorf("demands CSV header mismatch. Expected: %v, Got: %v", expectedHeader, header)
+	}
+	
+	var demands []mrp.DemandRequirement
+	for i, record := range records[1:] {
+		if len(record) != len(expectedHeader) {
+			return nil, fmt.Errorf("demands CSV row %d: expected %d columns, got %d", i+2, len(expectedHeader), len(record))
+		}
+		
+		demand, err := parseDemand(record)
+		if err != nil {
+			return nil, fmt.Errorf("demands CSV row %d: %w", i+2, err)
+		}
+		
+		demands = append(demands, demand)
+	}
+	
+	return demands, nil
+}
+
+// Helper functions for parsing CSV records
+
+func validateHeader(actual, expected []string) bool {
+	if len(actual) != len(expected) {
+		return false
+	}
+	
+	for i, col := range expected {
+		if strings.ToLower(strings.TrimSpace(actual[i])) != col {
+			return false
+		}
+	}
+	
+	return true
+}
+
+func parseItem(record []string) (mrp.Item, error) {
+	partNumber := mrp.PartNumber(record[0])
+	description := record[1]
+	
+	leadTimeDays, err := strconv.Atoi(record[2])
+	if err != nil {
+		return mrp.Item{}, fmt.Errorf("invalid lead_time_days: %s", record[2])
+	}
+	
+	lotSizeRule, err := parseLotSizeRule(record[3])
+	if err != nil {
+		return mrp.Item{}, err
+	}
+	
+	minOrderQty, err := decimal.NewFromString(record[4])
+	if err != nil {
+		return mrp.Item{}, fmt.Errorf("invalid min_order_qty: %s", record[4])
+	}
+	
+	safetyStock, err := decimal.NewFromString(record[5])
+	if err != nil {
+		return mrp.Item{}, fmt.Errorf("invalid safety_stock: %s", record[5])
+	}
+	
+	unitOfMeasure := record[6]
+	
+	return mrp.Item{
+		PartNumber:      partNumber,
+		Description:     description,
+		LeadTimeDays:    leadTimeDays,
+		LotSizeRule:     lotSizeRule,
+		MinOrderQty:     mrp.Quantity(minOrderQty),
+		SafetyStock:     mrp.Quantity(safetyStock),
+		UnitOfMeasure:   unitOfMeasure,
+	}, nil
+}
+
+func parseBOMLine(record []string) (mrp.BOMLine, error) {
+	parentPN := mrp.PartNumber(record[0])
+	childPN := mrp.PartNumber(record[1])
+	
+	qtyPer, err := decimal.NewFromString(record[2])
+	if err != nil {
+		return mrp.BOMLine{}, fmt.Errorf("invalid qty_per: %s", record[2])
+	}
+	
+	findNumber, err := strconv.Atoi(record[3])
+	if err != nil {
+		return mrp.BOMLine{}, fmt.Errorf("invalid find_number: %s", record[3])
+	}
+	
+	fromSerial := record[4]
+	toSerial := record[5]
+	
+	return mrp.BOMLine{
+		ParentPN:     parentPN,
+		ChildPN:      childPN,
+		QtyPer:       mrp.Quantity(qtyPer),
+		FindNumber:   findNumber,
+		Effectivity:  mrp.SerialEffectivity{FromSerial: fromSerial, ToSerial: toSerial},
+	}, nil
+}
+
+func parseDemand(record []string) (mrp.DemandRequirement, error) {
+	partNumber := mrp.PartNumber(record[0])
+	
+	quantity, err := decimal.NewFromString(record[1])
+	if err != nil {
+		return mrp.DemandRequirement{}, fmt.Errorf("invalid quantity: %s", record[1])
+	}
+	
+	needDate, err := time.Parse("2006-01-02", record[2])
+	if err != nil {
+		return mrp.DemandRequirement{}, fmt.Errorf("invalid need_date format: %s (expected YYYY-MM-DD)", record[2])
+	}
+	
+	demandSource := record[3]
+	location := record[4]
+	targetSerial := record[5]
+	
+	return mrp.DemandRequirement{
+		PartNumber:   partNumber,
+		Quantity:     mrp.Quantity(quantity),
+		NeedDate:     needDate,
+		DemandSource: demandSource,
+		Location:     location,
+		TargetSerial: targetSerial,
+	}, nil
+}
+
+func parseLotSizeRule(s string) (mrp.LotSizeRule, error) {
+	switch strings.ToLower(s) {
+	case "lotforlot":
+		return mrp.LotForLot, nil
+	case "minimumqty":
+		return mrp.MinimumQty, nil
+	case "standardpack":
+		return mrp.StandardPack, nil
+	default:
+		return mrp.LotForLot, fmt.Errorf("invalid lot_size_rule: %s (expected: LotForLot, MinimumQty, or StandardPack)", s)
+	}
+}
+
+func parseInventoryStatus(s string) (mrp.InventoryStatus, error) {
+	switch strings.ToLower(s) {
+	case "available":
+		return mrp.Available, nil
+	case "allocated":
+		return mrp.Allocated, nil
+	case "quarantine":
+		return mrp.Quarantine, nil
+	default:
+		return mrp.Available, fmt.Errorf("invalid status: %s (expected: Available, Allocated, or Quarantine)", s)
+	}
+}

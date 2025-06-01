@@ -57,7 +57,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 	
 	// Test with standard engine
 	t.Run("Standard_Engine_Performance", func(t *testing.T) {
-		engine := NewEngine(bomRepo, inventoryRepo)
+		engine := NewTestEngine(bomRepo, inventoryRepo)
 		
 		demands := []DemandRequirement{
 			{
@@ -65,7 +65,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 				Quantity:     Quantity(decimal.NewFromInt(3)), // Multiple units
 				NeedDate:     time.Now().Add(200 * 24 * time.Hour),
 				DemandSource: "LARGE_SCALE_TEST",
-				Location:     "HAWTHORNE",
+				Location:     "HUNTSVILLE",
 				TargetSerial: "SN150",
 			},
 			{
@@ -73,7 +73,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 				Quantity:     Quantity(decimal.NewFromInt(2)),
 				NeedDate:     time.Now().Add(180 * 24 * time.Hour),
 				DemandSource: "LARGE_SCALE_TEST_2",
-				Location:     "BOCA_CHICA",
+				Location:     "KENNEDY",
 				TargetSerial: "SN075", // Different serial for effectivity testing
 			},
 		}
@@ -160,7 +160,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 				Quantity:     Quantity(decimal.NewFromInt(5)), // Even more units
 				NeedDate:     time.Now().Add(200 * 24 * time.Hour),
 				DemandSource: "OPTIMIZED_LARGE_SCALE_TEST",
-				Location:     "HAWTHORNE",
+				Location:     "HUNTSVILLE",
 				TargetSerial: "SN200",
 			},
 		}
@@ -190,14 +190,14 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 		// Get initial memory stats
 		initialStats := GetMemoryStats()
 		
-		engine := NewEngine(bomRepo, inventoryRepo)
+		engine := NewTestEngine(bomRepo, inventoryRepo)
 		demands := []DemandRequirement{
 			{
 				PartNumber:   "L0_ASM_000002",
 				Quantity:     Quantity(decimal.NewFromInt(1)),
 				NeedDate:     time.Now().Add(150 * 24 * time.Hour),
 				DemandSource: "MEMORY_TEST",
-				Location:     "VANDENBERG",
+				Location:     "WALLOPS",
 				TargetSerial: "SN100",
 			},
 		}
@@ -224,7 +224,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 	
 	// Test concurrent access
 	t.Run("Concurrent_Access", func(t *testing.T) {
-		engine := NewEngine(bomRepo, inventoryRepo)
+		engine := NewTestEngine(bomRepo, inventoryRepo)
 		
 		// Run multiple MRP explosions concurrently
 		type result struct {
@@ -242,7 +242,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 						Quantity:     Quantity(decimal.NewFromInt(1)),
 						NeedDate:     time.Now().Add(time.Duration(120+id*10) * 24 * time.Hour),
 						DemandSource: fmt.Sprintf("CONCURRENT_TEST_%d", id),
-						Location:     "CAPE_CANAVERAL",
+						Location:     "KENNEDY",
 						TargetSerial: fmt.Sprintf("SN%03d", 100+id),
 					},
 				}

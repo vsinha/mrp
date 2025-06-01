@@ -1,0 +1,16 @@
+part_number,description,lead_time_days,lot_size_rule,min_order_qty,safety_stock,unit_of_measure
+F1_ENGINE,F-1 Engine,180,LotForLot,1,2,EA
+J2_ENGINE,J-2 Engine,150,LotForLot,1,2,EA
+F1_TURBOPUMP_V1,F-1 Turbopump Assembly V1,90,LotForLot,1,1,EA
+F1_TURBOPUMP_V2,F-1 Turbopump Assembly V2,90,LotForLot,1,1,EA
+J2_TURBOPUMP,J-2 Turbopump Assembly,75,LotForLot,1,1,EA
+COMBUSTION_CHAMBER,Engine Combustion Chamber,120,LotForLot,1,0,EA
+NOZZLE_ASSEMBLY,Engine Nozzle Assembly,90,LotForLot,1,0,EA
+VALVE_MAIN,Main Engine Valve,60,MinimumQty,10,5,EA
+INJECTOR_HEAD,Propellant Injector Head,75,LotForLot,1,1,EA
+SEAL_KIT,Engine Seal Kit,30,StandardPack,50,10,EA
+GASKET_SET,Gasket Set,20,StandardPack,100,20,EA
+BOLT_M12,M12 Hex Bolt,10,StandardPack,1000,100,EA
+BOLT_M16,M16 Hex Bolt,10,StandardPack,500,50,EA
+O_RING_LARGE,Large O-Ring,15,StandardPack,200,25,EA
+O_RING_SMALL,Small O-Ring,15,StandardPack,500,50,EA

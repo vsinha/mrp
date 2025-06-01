@@ -12,7 +12,7 @@ func TestEngine_ExplodeDemand_SingleLevel(t *testing.T) {
 	ctx := context.Background()
 	
 	// Setup repositories
-	bomRepo := NewInMemoryBOMRepository()
+	bomRepo := NewTestBOMRepository()
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	// Add test item
@@ -46,7 +46,7 @@ func TestEngine_ExplodeDemand_SingleLevel(t *testing.T) {
 	})
 	
 	// Create engine
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	// Create demand
 	needDate := time.Now().Add(30 * 24 * time.Hour)
@@ -105,7 +105,7 @@ func TestEngine_ExplodeDemand_SerialEffectivity(t *testing.T) {
 	// Use aerospace test data
 	bomRepo, inventoryRepo := buildAerospaceTestData()
 	
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	needDate := time.Date(2025, 8, 15, 0, 0, 0, 0, time.UTC)
 	
@@ -116,13 +116,13 @@ func TestEngine_ExplodeDemand_SerialEffectivity(t *testing.T) {
 	}{
 		{
 			name:         "early_serial_uses_v1",
-			targetSerial: "SN020",
-			expectedVac:  "MERLIN_VAC_V1",
+			targetSerial: "AS505",
+			expectedVac:  "J2_ENGINE_V1",
 		},
 		{
 			name:         "late_serial_uses_v2",
-			targetSerial: "SN075",
-			expectedVac:  "MERLIN_VAC_V2",
+			targetSerial: "AS507",
+			expectedVac:  "J2_ENGINE_V2",
 		},
 	}
 	
@@ -130,11 +130,11 @@ func TestEngine_ExplodeDemand_SerialEffectivity(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			demands := []DemandRequirement{
 				{
-					PartNumber:   "FALCON_9_BLOCK5",
+					PartNumber:   "SATURN_V",
 					Quantity:     Quantity(decimal.NewFromInt(1)),
 					NeedDate:     needDate,
 					DemandSource: "TEST_MISSION",
-					Location:     "HAWTHORNE",
+					Location:     "KENNEDY",
 					TargetSerial: tt.targetSerial,
 				},
 			}
@@ -164,7 +164,7 @@ func TestEngine_ExplodeDemand_InventoryAllocation(t *testing.T) {
 	ctx := context.Background()
 	
 	// Setup repositories
-	bomRepo := NewInMemoryBOMRepository()
+	bomRepo := NewTestBOMRepository()
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	// Add test item
@@ -188,7 +188,7 @@ func TestEngine_ExplodeDemand_InventoryAllocation(t *testing.T) {
 		Status:       Available,
 	})
 	
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	// Create demand for 3 units (should partially allocate from inventory)
 	demands := []DemandRequirement{
@@ -231,7 +231,7 @@ func TestEngine_ExplodeDemand_Memoization(t *testing.T) {
 	ctx := context.Background()
 	
 	// Setup repositories with multi-level BOM
-	bomRepo := NewInMemoryBOMRepository()
+	bomRepo := NewTestBOMRepository()
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	// Add items
@@ -282,7 +282,7 @@ func TestEngine_ExplodeDemand_Memoization(t *testing.T) {
 		Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
 	})
 	
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	// Create demand
 	demands := []DemandRequirement{
@@ -329,27 +329,27 @@ func TestEngine_ExplodeDemand_MultipleTargetSerials(t *testing.T) {
 	// Use aerospace test data
 	bomRepo, inventoryRepo := buildAerospaceTestData()
 	
-	engine := NewEngine(bomRepo, inventoryRepo)
+	engine := NewTestEngine(bomRepo, inventoryRepo)
 	
 	needDate := time.Date(2025, 8, 15, 0, 0, 0, 0, time.UTC)
 	
 	// Create demands for different target serials
 	demands := []DemandRequirement{
 		{
-			PartNumber:   "FALCON_9_BLOCK5",
+			PartNumber:   "SATURN_V",
 			Quantity:     Quantity(decimal.NewFromInt(1)),
 			NeedDate:     needDate,
-			DemandSource: "MISSION_OLD",
-			Location:     "HAWTHORNE",
-			TargetSerial: "SN020", // Should use MERLIN_VAC_V1
+			DemandSource: "APOLLO_OLD",
+			Location:     "KENNEDY",
+			TargetSerial: "AS505", // Should use J2_ENGINE_V1
 		},
 		{
-			PartNumber:   "FALCON_9_BLOCK5",
+			PartNumber:   "SATURN_V",
 			Quantity:     Quantity(decimal.NewFromInt(1)),
 			NeedDate:     needDate,
-			DemandSource: "MISSION_NEW",
-			Location:     "HAWTHORNE",
-			TargetSerial: "SN075", // Should use MERLIN_VAC_V2
+			DemandSource: "APOLLO_NEW",
+			Location:     "KENNEDY",
+			TargetSerial: "AS507", // Should use J2_ENGINE_V2
 		},
 	}
 	
@@ -363,18 +363,18 @@ func TestEngine_ExplodeDemand_MultipleTargetSerials(t *testing.T) {
 	foundV2 := false
 	
 	for _, order := range result.PlannedOrders {
-		if order.PartNumber == "MERLIN_VAC_V1" {
+		if order.PartNumber == "J2_ENGINE_V1" {
 			foundV1 = true
 		}
-		if order.PartNumber == "MERLIN_VAC_V2" {
+		if order.PartNumber == "J2_ENGINE_V2" {
 			foundV2 = true
 		}
 	}
 	
 	if !foundV1 {
-		t.Error("Expected planned order for MERLIN_VAC_V1")
+		t.Error("Expected planned order for J2_ENGINE_V1")
 	}
 	if !foundV2 {
-		t.Error("Expected planned order for MERLIN_VAC_V2")
+		t.Error("Expected planned order for J2_ENGINE_V2")
 	}
 }
