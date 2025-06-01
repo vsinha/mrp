@@ -77,7 +77,7 @@ Configuration: 30000 parts, 10 levels, 8.0 avg children per part
 - **Complete demand traceability** through supply chain
 
 ### ⚡ **Memory Optimizations**
-- **Compact repository** for reduced memory footprint
+- **Compact BOM repository** for reduced memory footprint
 - **Object pooling** for frequently allocated structures
 - **Cache management** with LRU eviction
 - **Batch processing** for very large operations
@@ -100,7 +100,7 @@ Configuration: 30000 parts, 10 levels, 8.0 avg children per part
 5. **Lot Sizing Rules** (LotForLot, MinimumQty, StandardPack)
 
 ### Memory Optimizations
-1. **CompactBOMRepository** - Array-based storage with index maps
+1. **BOMRepository** - Array-based storage with index maps
 2. **MemoryPool** - Object pooling for slice allocations
 3. **OptimizedEngine** - Batch processing and GC tuning
 4. **Cache Cleanup** - Periodic eviction of old entries

@@ -111,7 +111,7 @@ func BenchmarkMRPEngine_SerialEffectivity(b *testing.B) {
 
 // Helper functions for benchmark setups
 
-func setupSimpleBOM() (*CompactBOMRepository, *InMemoryInventoryRepository) {
+func setupSimpleBOM() (*BOMRepository, *InventoryRepository) {
 	bomRepo := NewTestBOMRepository()
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
@@ -146,8 +146,8 @@ func setupSimpleBOM() (*CompactBOMRepository, *InMemoryInventoryRepository) {
 	return bomRepo, inventoryRepo
 }
 
-func setupDeepBOM(levels int) (*CompactBOMRepository, *InMemoryInventoryRepository) {
-	bomRepo := NewCompactBOMRepository(levels, levels-1) // levels items, levels-1 BOM lines
+func setupDeepBOM(levels int) (*BOMRepository, *InventoryRepository) {
+	bomRepo := NewBOMRepository(levels, levels-1) // levels items, levels-1 BOM lines
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	// Create items for each level
@@ -179,8 +179,8 @@ func setupDeepBOM(levels int) (*CompactBOMRepository, *InMemoryInventoryReposito
 	return bomRepo, inventoryRepo
 }
 
-func setupWideBOM(width int) (*CompactBOMRepository, *InMemoryInventoryRepository) {
-	bomRepo := NewCompactBOMRepository(width+1, width) // width+1 items (including top assembly), width BOM lines
+func setupWideBOM(width int) (*BOMRepository, *InventoryRepository) {
+	bomRepo := NewBOMRepository(width+1, width) // width+1 items (including top assembly), width BOM lines
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	// Create top assembly

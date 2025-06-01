@@ -212,7 +212,7 @@ Large-scale complete Saturn V scenario:
 
 ### Automatic Optimization
 The CLI automatically uses optimized algorithms for all datasets:
-- Always uses compact storage repositories
+- Uses compact storage repositories
 - Always uses optimized engine
 - Memory management and GC tuning for all operations
 

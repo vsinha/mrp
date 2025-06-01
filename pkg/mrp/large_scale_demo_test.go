@@ -135,24 +135,21 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 	
 	// Test with optimized engine
 	t.Run("Optimized_Engine_Performance", func(t *testing.T) {
-		// Use compact repository for better memory efficiency
-		compactBomRepo := NewCompactBOMRepository(len(allItems), len(allBOMLines))
+		bomRepo := NewBOMRepository(len(allItems), len(allBOMLines))
 		
 		for _, item := range allItems {
-			compactBomRepo.AddItem(item)
+			bomRepo.AddItem(item)
 		}
 		for _, line := range allBOMLines {
-			compactBomRepo.AddBOMLine(line)
+			bomRepo.AddBOMLine(line)
 		}
 		
-		optimizationConfig := OptimizationConfig{
-			EnableGCPacing:       true,
-			CacheCleanupInterval: 0, // Disable for test
-			MaxCacheEntries:      8000,
-			BatchSize:           1000,
+		engineConfig := EngineConfig{
+			EnableGCPacing:  true,
+			MaxCacheEntries: 8000,
 		}
 		
-		engine := NewOptimizedEngine(compactBomRepo, inventoryRepo, optimizationConfig)
+		engine := NewEngineWithConfig(bomRepo, inventoryRepo, engineConfig)
 		
 		demands := []DemandRequirement{
 			{
@@ -212,13 +209,20 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 		t.Logf("💾 Memory Usage Analysis:")
 		t.Logf("  Initial Memory: %s", FormatBytes(initialStats.AllocBytes))
 		t.Logf("  Final Memory: %s", FormatBytes(finalStats.AllocBytes))
-		t.Logf("  Memory Increase: %s", FormatBytes(finalStats.AllocBytes-initialStats.AllocBytes))
+		var memoryChange string
+		if finalStats.AllocBytes >= initialStats.AllocBytes {
+			memoryChange = "+" + FormatBytes(finalStats.AllocBytes-initialStats.AllocBytes)
+		} else {
+			memoryChange = "-" + FormatBytes(initialStats.AllocBytes-finalStats.AllocBytes)
+		}
+		t.Logf("  Memory Change: %s", memoryChange)
 		t.Logf("  Total Allocations: %s", FormatBytes(finalStats.TotalAllocBytes-initialStats.TotalAllocBytes))
 		
 		// Memory should be reasonable for 30K parts
-		memoryIncrease := finalStats.AllocBytes - initialStats.AllocBytes
-		if memoryIncrease > 500*1024*1024 { // 500MB
-			t.Errorf("Memory usage too high: %s (expected < 500MB)", FormatBytes(memoryIncrease))
+		// Use total allocations instead of current memory to avoid GC effects
+		totalAllocations := finalStats.TotalAllocBytes - initialStats.TotalAllocBytes
+		if totalAllocations > 1024*1024*1024 { // 1GB total allocations is reasonable
+			t.Errorf("Total allocations too high: %s (expected < 1GB)", FormatBytes(totalAllocations))
 		}
 	})
 	

@@ -134,43 +134,28 @@ func main() {
 	}
 	
 	// Create repositories
-	var bomRepo mrp.BOMRepository
-	var inventoryRepo mrp.InventoryRepository
-	
-	// Always use compact BOM repository for optimal performance
-	compactBomRepo := mrp.NewCompactBOMRepository(len(items), len(bomLines))
+	bomRepo := mrp.NewBOMRepository(len(items), len(bomLines))
 	for _, item := range items {
-		compactBomRepo.AddItem(item)
+		bomRepo.AddItem(item)
 	}
 	for _, line := range bomLines {
-		compactBomRepo.AddBOMLine(line)
-	}
-	bomRepo = compactBomRepo
-	
-	if *verbose {
-		fmt.Println("🔧 Using optimized compact BOM repository")
+		bomRepo.AddBOMLine(line)
 	}
 	
-	inMemoryInventoryRepo := mrp.NewInMemoryInventoryRepository()
+	inventoryRepo := mrp.NewInMemoryInventoryRepository()
 	for _, lot := range lotInventory {
-		inMemoryInventoryRepo.AddLotInventory(lot)
+		inventoryRepo.AddLotInventory(lot)
 	}
 	for _, serial := range serialInventory {
-		inMemoryInventoryRepo.AddSerializedInventory(serial)
+		inventoryRepo.AddSerializedInventory(serial)
 	}
-	inventoryRepo = inMemoryInventoryRepo
 	
 	// Create MRP engine
-	var engine mrp.MRPEngine
-	
-	// Always use optimized engine for best performance
-	optimizationConfig := mrp.OptimizationConfig{
-		EnableGCPacing:       true,
-		CacheCleanupInterval: 5 * time.Minute,
-		MaxCacheEntries:      10000,
-		BatchSize:           1000,
+	engineConfig := mrp.EngineConfig{
+		EnableGCPacing:  true,
+		MaxCacheEntries: 10000,
 	}
-	engine = mrp.NewOptimizedEngine(bomRepo, inventoryRepo, optimizationConfig)
+	engine := mrp.NewEngineWithConfig(bomRepo, inventoryRepo, engineConfig)
 	
 	if *verbose {
 		fmt.Println("⚡ Using optimized MRP engine")

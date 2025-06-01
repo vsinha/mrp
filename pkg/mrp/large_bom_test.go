@@ -36,8 +36,8 @@ func NewLargeBOMSynthesizer(config LargeBOMConfig) *LargeBOMSynthesizer {
 }
 
 // SynthesizeAerospaceBOM creates a realistic aerospace BOM structure
-func (s *LargeBOMSynthesizer) SynthesizeAerospaceBOM() (*CompactBOMRepository, *InMemoryInventoryRepository) {
-	bomRepo := NewCompactBOMRepository(s.config.TotalParts, s.config.TotalParts*2) // Conservative estimate for BOM lines
+func (s *LargeBOMSynthesizer) SynthesizeAerospaceBOM() (*BOMRepository, *InventoryRepository) {
+	bomRepo := NewBOMRepository(s.config.TotalParts, s.config.TotalParts*2) // Conservative estimate for BOM lines
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	fmt.Printf("🏭 Synthesizing aerospace BOM with %d parts, %d levels...\n", 
@@ -152,7 +152,7 @@ func (s *LargeBOMSynthesizer) generatePartsForLevel(level, count int) []PartInfo
 }
 
 // generateBOMRelationships creates parent-child relationships between parts
-func (s *LargeBOMSynthesizer) generateBOMRelationships(bomRepo *CompactBOMRepository, partsByLevel [][]PartInfo) int {
+func (s *LargeBOMSynthesizer) generateBOMRelationships(bomRepo *BOMRepository, partsByLevel [][]PartInfo) int {
 	bomLineCount := 0
 	
 	// Create relationships from each level to the next
@@ -192,7 +192,7 @@ func (s *LargeBOMSynthesizer) generateBOMRelationships(bomRepo *CompactBOMReposi
 }
 
 // generateInventory creates inventory records for a subset of parts
-func (s *LargeBOMSynthesizer) generateInventory(inventoryRepo *InMemoryInventoryRepository, allParts []PartInfo) int {
+func (s *LargeBOMSynthesizer) generateInventory(inventoryRepo *InventoryRepository, allParts []PartInfo) int {
 	inventoryCount := 0
 	baseDate := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	
@@ -646,26 +646,12 @@ func BenchmarkOptimizedMRPEngine_30KParts(b *testing.B) {
 	synthesizer := NewLargeBOMSynthesizer(config)
 	bomRepo, inventoryRepo := synthesizer.SynthesizeAerospaceBOM()
 	
-	// Use compact repository for better memory efficiency
-	compactBomRepo := NewCompactBOMRepository(config.TotalParts, 70000)
-	allItems, _ := bomRepo.GetAllItems(ctx)
-	allBOMLines, _ := bomRepo.GetAllBOMLines(ctx)
-	
-	for _, item := range allItems {
-		compactBomRepo.AddItem(item)
-	}
-	for _, line := range allBOMLines {
-		compactBomRepo.AddBOMLine(line)
+	engineConfig := EngineConfig{
+		EnableGCPacing:  true,
+		MaxCacheEntries: 5000,
 	}
 	
-	optimizationConfig := OptimizationConfig{
-		EnableGCPacing:       true,
-		CacheCleanupInterval: 0, // Disable for benchmark
-		MaxCacheEntries:      5000,
-		BatchSize:           500,
-	}
-	
-	engine := NewOptimizedEngine(compactBomRepo, inventoryRepo, optimizationConfig)
+	engine := NewEngineWithConfig(bomRepo, inventoryRepo, engineConfig)
 	
 	demands := []DemandRequirement{
 		{
@@ -752,26 +738,12 @@ func BenchmarkMemoryUsage_30KParts(b *testing.B) {
 	b.Run("Optimized_Engine", func(b *testing.B) {
 		bomRepo, inventoryRepo := synthesizer.SynthesizeAerospaceBOM()
 		
-		// Use compact repository
-		compactBomRepo := NewCompactBOMRepository(config.TotalParts, 70000)
-		allItems, _ := bomRepo.GetAllItems(ctx)
-		allBOMLines, _ := bomRepo.GetAllBOMLines(ctx)
-		
-		for _, item := range allItems {
-			compactBomRepo.AddItem(item)
-		}
-		for _, line := range allBOMLines {
-			compactBomRepo.AddBOMLine(line)
+		engineConfig := EngineConfig{
+			EnableGCPacing:  true,
+			MaxCacheEntries: 5000,
 		}
 		
-		optimizationConfig := OptimizationConfig{
-			EnableGCPacing:       true,
-			CacheCleanupInterval: 0,
-			MaxCacheEntries:      5000,
-			BatchSize:           500,
-		}
-		
-		engine := NewOptimizedEngine(compactBomRepo, inventoryRepo, optimizationConfig)
+		engine := NewEngineWithConfig(bomRepo, inventoryRepo, engineConfig)
 		
 		demands := []DemandRequirement{
 			{

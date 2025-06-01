@@ -3,38 +3,28 @@ package mrp
 import (
 	"context"
 	"fmt"
+	"runtime"
+	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
 
-// MRPEngine is the main interface for Material Requirements Planning
-type MRPEngine interface {
-	ExplodeDemand(ctx context.Context, demands []DemandRequirement) (*MRPResult, error)
-}
-
-// BOMRepository provides access to Bill of Materials data
-type BOMRepository interface {
-	GetEffectiveBOM(ctx context.Context, pn PartNumber, serial string) ([]BOMLine, error)
-	GetItem(ctx context.Context, pn PartNumber) (*Item, error)
-	GetAllBOMLines(ctx context.Context) ([]BOMLine, error)
-	GetAllItems(ctx context.Context) ([]Item, error)
-}
-
-// InventoryRepository provides access to inventory data
-type InventoryRepository interface {
-	GetAvailableInventory(ctx context.Context, pn PartNumber, location string) ([]InventoryLot, []SerializedInventory, error)
-	GetInventoryByLot(ctx context.Context, pn PartNumber, lotNumber string) (*InventoryLot, error)
-	GetInventoryBySerial(ctx context.Context, pn PartNumber, serialNumber string) (*SerializedInventory, error)
-	UpdateInventoryAllocation(ctx context.Context, allocations []InventoryAllocation) error
+// EngineConfig holds configuration for MRP engine optimization
+type EngineConfig struct {
+	// EnableGCPacing enables GC tuning for large operations
+	EnableGCPacing bool
+	// MaxCacheEntries limits the explosion cache size (0 = unlimited)
+	MaxCacheEntries int
 }
 
 // Engine implements the MRP planning logic
 type Engine struct {
-	bomRepo       BOMRepository
-	inventoryRepo InventoryRepository
+	bomRepo       *BOMRepository
+	inventoryRepo *InventoryRepository
 	serialComp    *SerialComparator
+	config        EngineConfig
 	
 	// Memoization cache for BOM explosions
 	explosionCache map[ExplosionCacheKey]*ExplosionResult
@@ -42,22 +32,39 @@ type Engine struct {
 }
 
 // NewEngine creates a new MRP engine with the provided repositories
-func NewEngine(bomRepo BOMRepository, inventoryRepo InventoryRepository) *Engine {
+func NewEngine(bomRepo *BOMRepository, inventoryRepo *InventoryRepository) *Engine {
+	return NewEngineWithConfig(bomRepo, inventoryRepo, EngineConfig{
+		EnableGCPacing:  true,
+		MaxCacheEntries: 10000,
+	})
+}
+
+// NewEngineWithConfig creates a new MRP engine with custom configuration
+func NewEngineWithConfig(bomRepo *BOMRepository, inventoryRepo *InventoryRepository, config EngineConfig) *Engine {
 	return &Engine{
 		bomRepo:        bomRepo,
 		inventoryRepo:  inventoryRepo,
 		serialComp:     NewSerialComparator(),
+		config:         config,
 		explosionCache: make(map[ExplosionCacheKey]*ExplosionResult),
 	}
 }
 
 // ExplodeDemand performs complete MRP explosion for the given demands
 func (e *Engine) ExplodeDemand(ctx context.Context, demands []DemandRequirement) (*MRPResult, error) {
-	// Initialize result structure
+	// Set GC pacing for large operations
+	var oldGCPercent int
+	if e.config.EnableGCPacing && len(demands) > 100 {
+		oldGCPercent = int(debug.SetGCPercent(50)) // More aggressive GC for large operations
+		defer debug.SetGCPercent(oldGCPercent)
+	}
+	
+	// Pre-allocate result slices with estimated capacity for better performance
+	estimatedOrders := len(demands) * 50 // Conservative estimate
 	result := &MRPResult{
-		PlannedOrders:   []PlannedOrder{},
-		Allocations:     []AllocationResult{},
-		ShortageReport:  []Shortage{},
+		PlannedOrders:   make([]PlannedOrder, 0, estimatedOrders),
+		Allocations:     make([]AllocationResult, 0, len(demands)*10),
+		ShortageReport:  make([]Shortage, 0, estimatedOrders/2),
 		ExplosionCache:  make(map[ExplosionCacheKey]*ExplosionResult),
 	}
 	
@@ -95,6 +102,9 @@ func (e *Engine) ExplodeDemand(ctx context.Context, demands []DemandRequirement)
 		result.ExplosionCache[key] = value
 	}
 	e.cacheMutex.RUnlock()
+	
+	// Clean cache if it's getting too large
+	e.cleanCacheIfNeeded()
 	
 	return result, nil
 }
@@ -368,6 +378,40 @@ func (e *Engine) identifyShortages(netRequirements []NetRequirement, plannedOrde
 	}
 	
 	return shortages
+}
+
+// cleanCacheIfNeeded removes old cache entries if the cache is getting too large
+func (e *Engine) cleanCacheIfNeeded() {
+	if e.config.MaxCacheEntries <= 0 {
+		return // Unlimited cache
+	}
+	
+	e.cacheMutex.Lock()
+	defer e.cacheMutex.Unlock()
+	
+	if len(e.explosionCache) > e.config.MaxCacheEntries {
+		// Simple cache eviction: clear half the cache
+		// In a production system, you might want LRU eviction
+		newCache := make(map[ExplosionCacheKey]*ExplosionResult)
+		count := 0
+		target := e.config.MaxCacheEntries / 2
+		
+		for key, value := range e.explosionCache {
+			if count < target {
+				newCache[key] = value
+				count++
+			} else {
+				break
+			}
+		}
+		
+		e.explosionCache = newCache
+		
+		// Force GC to clean up evicted cache entries
+		if e.config.EnableGCPacing {
+			runtime.GC()
+		}
+	}
 }
 
 // Helper method to convert Quantity to decimal.Decimal

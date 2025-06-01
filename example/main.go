@@ -13,20 +13,18 @@ func main() {
 	ctx := context.Background()
 	
 	// Create repositories
-	bomRepo := mrp.NewCompactBOMRepository(4, 3) // 4 items, 3 BOM lines
+	bomRepo := mrp.NewBOMRepository(4, 3) // 4 items, 3 BOM lines
 	inventoryRepo := mrp.NewInMemoryInventoryRepository()
 	
 	// Set up a simple rocket engine BOM
 	setupRocketEngineBOM(bomRepo, inventoryRepo)
 	
 	// Create MRP engine
-	config := mrp.OptimizationConfig{
-		EnableGCPacing:       true,
-		CacheCleanupInterval: 5 * time.Minute,
-		MaxCacheEntries:      1000,
-		BatchSize:           100,
+	config := mrp.EngineConfig{
+		EnableGCPacing:  true,
+		MaxCacheEntries: 1000,
 	}
-	engine := mrp.NewOptimizedEngine(bomRepo, inventoryRepo, config)
+	engine := mrp.NewEngineWithConfig(bomRepo, inventoryRepo, config)
 	
 	// Define demand for a rocket launch
 	needDate := time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)
@@ -105,7 +103,7 @@ func main() {
 	fmt.Println("✅ MRP analysis complete!")
 }
 
-func setupRocketEngineBOM(bomRepo *mrp.CompactBOMRepository, inventoryRepo *mrp.InMemoryInventoryRepository) {
+func setupRocketEngineBOM(bomRepo *mrp.BOMRepository, inventoryRepo *mrp.InventoryRepository) {
 	// Add items
 	bomRepo.AddItem(mrp.Item{
 		PartNumber:      "ROCKET_ENGINE",

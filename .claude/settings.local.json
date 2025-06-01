@@ -7,7 +7,8 @@
       "Bash(go build:*)",
       "Bash(mkdir:*)",
       "Bash(./mrp:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

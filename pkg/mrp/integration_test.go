@@ -148,7 +148,7 @@ func TestMRPIntegration_PerformanceWithLargeBOM(t *testing.T) {
 	ctx := context.Background()
 	
 	// Build a larger BOM structure for performance testing
-	bomRepo := NewInMemoryBOMRepository()
+	bomRepo := NewBOMRepository(50, 200) // Estimate for 5 levels, 10 parts per level
 	inventoryRepo := NewInMemoryInventoryRepository()
 	
 	// Create a multi-level BOM with many parts
