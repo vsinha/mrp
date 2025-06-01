@@ -1,8 +1,9 @@
-package services
+package criticalpath
 
 import (
 	"context"
 
+	"github.com/vsinha/mrp/pkg/application/services/shared"
 	"github.com/vsinha/mrp/pkg/domain/entities"
 	"github.com/vsinha/mrp/pkg/domain/repositories"
 	"github.com/vsinha/mrp/pkg/domain/services"
@@ -34,7 +35,7 @@ func NewCriticalPathVisitor(
 // VisitNode creates a critical path node for this part
 func (v *CriticalPathVisitor) VisitNode(
 	ctx context.Context,
-	nodeCtx BOMNodeContext,
+	nodeCtx shared.BOMNodeContext,
 ) (interface{}, bool, error) {
 	var hasInventory bool
 	var inventoryQty entities.Quantity
@@ -89,7 +90,7 @@ func (v *CriticalPathVisitor) VisitNode(
 // ProcessChildren creates critical paths by combining this node with child paths
 func (v *CriticalPathVisitor) ProcessChildren(
 	ctx context.Context,
-	nodeCtx BOMNodeContext,
+	nodeCtx shared.BOMNodeContext,
 	nodeData interface{},
 	childResults []interface{},
 ) (interface{}, error) {

@@ -1,9 +1,10 @@
-package services
+package mrp
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/vsinha/mrp/pkg/application/services/shared"
 	"github.com/vsinha/mrp/pkg/domain/entities"
 	"github.com/vsinha/mrp/pkg/domain/repositories"
 )
@@ -16,7 +17,7 @@ type BOMNodeContext struct {
 	TargetSerial      string
 	Location          string
 	Level             int
-	AllocationContext *AllocationContext // Optional allocation info
+	AllocationContext *shared.AllocationContext // Optional allocation info
 }
 
 // BOMNodeVisitor defines the interface for processing nodes during BOM traversal
@@ -40,7 +41,7 @@ type BOMTraverser struct {
 	bomRepo       repositories.BOMRepository
 	itemRepo      repositories.ItemRepository
 	inventoryRepo repositories.InventoryRepository
-	allocationMap AllocationMap
+	allocationMap shared.AllocationMap
 }
 
 // NewBOMTraverser creates a new BOM traverser
@@ -53,24 +54,24 @@ func NewBOMTraverser(
 		bomRepo:       bomRepo,
 		itemRepo:      itemRepo,
 		inventoryRepo: inventoryRepo,
-		allocationMap: NewAllocationMap(),
+		allocationMap: shared.NewAllocationMap(),
 	}
 }
 
 // SetAllocationContext updates the allocation information for parts
 func (bt *BOMTraverser) SetAllocationContext(allocations []entities.AllocationResult) {
-	bt.allocationMap = NewAllocationMapFromResults(allocations)
+	bt.allocationMap = shared.NewAllocationMapFromResults(allocations)
 }
 
 // SetAllocationMap directly sets the allocation map
-func (bt *BOMTraverser) SetAllocationMap(allocMap AllocationMap) {
+func (bt *BOMTraverser) SetAllocationMap(allocMap shared.AllocationMap) {
 	bt.allocationMap = allocMap
 }
 
 // GetAllocationMap returns a copy of the current allocation map
-func (bt *BOMTraverser) GetAllocationMap() AllocationMap {
+func (bt *BOMTraverser) GetAllocationMap() shared.AllocationMap {
 	// Return a copy to prevent external modifications
-	copyMap := NewAllocationMap()
+	copyMap := shared.NewAllocationMap()
 	for key, context := range bt.allocationMap {
 		copyMap[key] = context
 	}
@@ -152,7 +153,7 @@ func (bt *BOMTraverser) TraverseBOM(
 		}
 
 		// Select the best alternate from effective ones
-		selectedAlternate := SelectBestAlternateByPriority(effectiveAlternates)
+		selectedAlternate := shared.SelectBestAlternateByPriority(effectiveAlternates)
 		if selectedAlternate == nil {
 			continue // No suitable alternate found
 		}

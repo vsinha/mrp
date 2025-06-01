@@ -1,4 +1,4 @@
-package services
+package criticalpath
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/vsinha/mrp/pkg/application/services/shared"
 	"github.com/vsinha/mrp/pkg/domain/entities"
 	"github.com/vsinha/mrp/pkg/domain/repositories"
 	"github.com/vsinha/mrp/pkg/domain/services"
@@ -17,7 +18,7 @@ type CriticalPathService struct {
 	itemRepo      repositories.ItemRepository
 	inventoryRepo repositories.InventoryRepository
 	serialComp    *services.SerialComparator
-	bomTraverser  *BOMTraverser
+	bomTraverser  *shared.BOMTraverser
 }
 
 // NewCriticalPathService creates a new critical path service
@@ -27,7 +28,7 @@ func NewCriticalPathService(
 	inventoryRepo repositories.InventoryRepository,
 	serialComp *services.SerialComparator,
 ) *CriticalPathService {
-	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
+	bomTraverser := shared.NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
 	return &CriticalPathService{
 		bomRepo:       bomRepo,
 		itemRepo:      itemRepo,

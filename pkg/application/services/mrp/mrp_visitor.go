@@ -1,9 +1,10 @@
-package services
+package mrp
 
 import (
 	"context"
 	"time"
 
+	"github.com/vsinha/mrp/pkg/application/services/shared"
 	"github.com/vsinha/mrp/pkg/domain/entities"
 )
 
@@ -29,7 +30,7 @@ func NewMRPVisitor(demandTrace string, needDate time.Time) *MRPVisitor {
 // VisitNode creates a gross requirement for this node
 func (v *MRPVisitor) VisitNode(
 	ctx context.Context,
-	nodeCtx BOMNodeContext,
+	nodeCtx shared.BOMNodeContext,
 ) (interface{}, bool, error) {
 	// Create requirement for this part itself
 	req := &entities.GrossRequirement{
@@ -52,7 +53,7 @@ func (v *MRPVisitor) VisitNode(
 // ProcessChildren combines this node's requirement with child requirements
 func (v *MRPVisitor) ProcessChildren(
 	ctx context.Context,
-	nodeCtx BOMNodeContext,
+	nodeCtx shared.BOMNodeContext,
 	nodeData interface{},
 	childResults []interface{},
 ) (interface{}, error) {

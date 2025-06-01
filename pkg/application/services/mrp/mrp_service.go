@@ -1,4 +1,4 @@
-package services
+package mrp
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/vsinha/mrp/pkg/application/dto"
+	"github.com/vsinha/mrp/pkg/application/services/shared"
 	"github.com/vsinha/mrp/pkg/domain/entities"
 	"github.com/vsinha/mrp/pkg/domain/repositories"
 )
@@ -174,7 +175,7 @@ func (s *MRPService) explodeRequirements(
 	}
 
 	// Use BOMTraverser with MRPVisitor to perform the explosion
-	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
+	bomTraverser := shared.NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
 	visitor := NewMRPVisitor(demandTrace, needDate)
 	result, err := bomTraverser.TraverseBOM(ctx, pn, targetSerial, location, quantity, 0, visitor)
 	if err != nil {

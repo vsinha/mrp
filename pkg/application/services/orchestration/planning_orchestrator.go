@@ -1,4 +1,4 @@
-package services
+package orchestration
 
 import (
 	"context"
@@ -6,14 +6,16 @@ import (
 	"time"
 
 	"github.com/vsinha/mrp/pkg/application/dto"
+	"github.com/vsinha/mrp/pkg/application/services/criticalpath"
+	"github.com/vsinha/mrp/pkg/application/services/mrp"
 	"github.com/vsinha/mrp/pkg/domain/entities"
 	"github.com/vsinha/mrp/pkg/domain/repositories"
 )
 
 // PlanningOrchestrator coordinates between MRP and Critical Path services
 type PlanningOrchestrator struct {
-	mrpService          *MRPService
-	criticalPathService *CriticalPathService
+	mrpService          *mrp.MRPService
+	criticalPathService *criticalpath.CriticalPathService
 	bomRepo             repositories.BOMRepository
 	itemRepo            repositories.ItemRepository
 	inventoryRepo       repositories.InventoryRepository
@@ -22,8 +24,8 @@ type PlanningOrchestrator struct {
 
 // NewPlanningOrchestrator creates a new planning orchestrator
 func NewPlanningOrchestrator(
-	mrpService *MRPService,
-	criticalPathService *CriticalPathService,
+	mrpService *mrp.MRPService,
+	criticalPathService *criticalpath.CriticalPathService,
 	bomRepo repositories.BOMRepository,
 	itemRepo repositories.ItemRepository,
 	inventoryRepo repositories.InventoryRepository,

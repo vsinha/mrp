@@ -1,19 +1,23 @@
-package services
+package orchestration
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	"github.com/vsinha/mrp/pkg/application/services/criticalpath"
+	"github.com/vsinha/mrp/pkg/application/services/mrp"
+	"github.com/vsinha/mrp/pkg/application/services/shared"
 	"github.com/vsinha/mrp/pkg/domain/entities"
+	"github.com/vsinha/mrp/pkg/infrastructure/repositories/memory"
 	testinghelpers "github.com/vsinha/mrp/pkg/infrastructure/testing"
 )
 
 func TestPlanningOrchestrator_AnalyzeCriticalPathWithMRPResults(t *testing.T) {
 	bomRepo, itemRepo, inventoryRepo, demandRepo := testinghelpers.BuildAerospaceTestData()
 
-	mrpService := NewMRPService()
-	criticalPathService := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
+	mrpService := mrp.NewMRPService()
+	criticalPathService := criticalpath.NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
 	orchestrator := NewPlanningOrchestrator(
 		mrpService,
 		criticalPathService,
@@ -71,7 +75,7 @@ func TestPlanningOrchestrator_AnalyzeCriticalPathWithMRPResults(t *testing.T) {
 func TestBOMTraverser_AllocationContext(t *testing.T) {
 	bomRepo, itemRepo, inventoryRepo, _ := testinghelpers.BuildAerospaceTestData()
 
-	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
+	bomTraverser := shared.NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
 
 	// Create some allocation results
 	allocations := []entities.AllocationResult{
@@ -93,7 +97,7 @@ func TestBOMTraverser_AllocationContext(t *testing.T) {
 	bomTraverser.SetAllocationContext(allocations)
 
 	// Create a visitor to test allocation context
-	visitor := NewCriticalPathVisitor(inventoryRepo, nil)
+	visitor := criticalpath.NewCriticalPathVisitor(inventoryRepo, nil)
 
 	// Test traversal
 	result, err := bomTraverser.TraverseBOM(
@@ -136,7 +140,7 @@ func TestBOMTraverser_AllocationContext(t *testing.T) {
 
 func TestAllocationMap(t *testing.T) {
 	// Test creating empty allocation map
-	allocMap := NewAllocationMap()
+	allocMap := shared.NewAllocationMap()
 	if allocMap.Size() != 0 {
 		t.Errorf("Expected empty map, got size %d", allocMap.Size())
 	}
@@ -157,7 +161,7 @@ func TestAllocationMap(t *testing.T) {
 		},
 	}
 
-	allocMap = NewAllocationMapFromResults(allocations)
+	allocMap = shared.NewAllocationMapFromResults(allocations)
 
 	// Test basic operations
 	if allocMap.Size() != 2 {
@@ -227,7 +231,7 @@ func TestAllocationMap(t *testing.T) {
 	}
 
 	// Test String method (for debugging)
-	allocMap.Set("TEST_PART", "TEST_LOC", &AllocationContext{
+	allocMap.Set("TEST_PART", "TEST_LOC", &shared.AllocationContext{
 		AllocatedQty:    1,
 		RemainingDemand: 2,
 		HasAllocation:   true,
@@ -252,7 +256,7 @@ func TestAllocationContext_RealWorldUsage(t *testing.T) {
 	}
 
 	// Create allocation map
-	allocMap := NewAllocationMapFromResults(mrpResults)
+	allocMap := shared.NewAllocationMapFromResults(mrpResults)
 
 	// Check overall allocation coverage
 	totalDemand := allocMap.GetTotalDemand()
@@ -320,4 +324,188 @@ func TestAllocationContext_RealWorldUsage(t *testing.T) {
 	if overallCoverage < 0.5 || overallCoverage > 1.0 {
 		t.Errorf("Unexpected overall coverage: %.3f", overallCoverage)
 	}
+}
+
+func TestMRPService_CriticalPathAnalysis_SimpleCase(t *testing.T) {
+	ctx := context.Background()
+
+	// Build a simple test BOM with known critical path
+	bomRepo, itemRepo, inventoryRepo := buildCriticalPathTestData()
+	demandRepo := memory.NewDemandRepository()
+
+	// Create MRP service
+	mrpService := mrp.NewMRPService()
+	criticalPathService := criticalpath.NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
+	orchestrator := NewPlanningOrchestrator(
+		mrpService,
+		criticalPathService,
+		bomRepo,
+		itemRepo,
+		inventoryRepo,
+		demandRepo,
+	)
+
+	// Analyze critical path for rocket engine
+	analysis, err := orchestrator.AnalyzeCriticalPathForPart(
+		ctx,
+		"ROCKET_ENGINE",
+		"AS507",
+		"KENNEDY",
+		5,
+	)
+	if err != nil {
+		t.Fatalf("Critical path analysis failed: %v", err)
+	}
+
+	// Verify we found paths
+	if len(analysis.TopPaths) == 0 {
+		t.Fatal("Expected to find at least one critical path")
+	}
+
+	t.Logf("Critical Path Analysis Results:")
+	t.Logf("  %s", analysis.GetCriticalPathSummary())
+	t.Logf("  Total paths analyzed: %d", analysis.TotalPaths)
+	t.Logf("  Inventory coverage: %.1f%%", analysis.GetInventoryCoverage())
+
+	// Verify critical path
+	criticalPath := analysis.CriticalPath
+	if criticalPath.TotalLeadTime <= 0 {
+		t.Error("Expected positive total lead time")
+	}
+
+	if len(criticalPath.Path) == 0 {
+		t.Error("Expected non-empty critical path")
+	}
+
+	t.Logf("  Critical path details:")
+	for _, node := range criticalPath.PathDetails {
+		inventoryStatus := "No inventory"
+		if node.HasInventory {
+			inventoryStatus = "Has inventory"
+		}
+		t.Logf("    Level %d: %s (%d days) - %s",
+			node.Level, node.PartNumber, node.LeadTimeDays, inventoryStatus)
+	}
+
+	// Show all top paths
+	t.Logf("  Top %d paths:", len(analysis.TopPaths))
+	for i, path := range analysis.TopPaths {
+		t.Logf("    %d. %s", i+1, path.GetPathSummary())
+	}
+}
+
+// buildCriticalPathTestData creates test data for critical path analysis
+func buildCriticalPathTestData() (*memory.BOMRepository, *memory.ItemRepository, *memory.InventoryRepository) {
+	bomRepo := memory.NewBOMRepository(3)
+	itemRepo := memory.NewItemRepository(4)
+	inventoryRepo := memory.NewInventoryRepository()
+
+	// Add items
+	items := []*entities.Item{
+		{
+			PartNumber:    "ROCKET_ENGINE",
+			Description:   "Main Rocket Engine Assembly",
+			LeadTimeDays:  120,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+		{
+			PartNumber:    "TURBOPUMP_V3",
+			Description:   "Turbopump Assembly V3 (Latest)",
+			LeadTimeDays:  60,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+		{
+			PartNumber:    "COMBUSTION_CHAMBER",
+			Description:   "Main Combustion Chamber",
+			LeadTimeDays:  90,
+			LotSizeRule:   entities.LotForLot,
+			MinOrderQty:   entities.Quantity(1),
+			SafetyStock:   entities.Quantity(0),
+			UnitOfMeasure: "EA",
+		},
+		{
+			PartNumber:    "VALVE_ASSEMBLY",
+			Description:   "Main Valve Assembly",
+			LeadTimeDays:  45,
+			LotSizeRule:   entities.MinimumQty,
+			MinOrderQty:   entities.Quantity(10),
+			SafetyStock:   entities.Quantity(5),
+			UnitOfMeasure: "EA",
+		},
+	}
+
+	for _, item := range items {
+		err := itemRepo.SaveItem(item)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	// Add BOM structure
+	bomLines := []*entities.BOMLine{
+		{
+			ParentPN:    "ROCKET_ENGINE",
+			ChildPN:     "TURBOPUMP_V3",
+			QtyPer:      entities.Quantity(2),
+			FindNumber:  100,
+			Effectivity: entities.SerialEffectivity{FromSerial: "SN050", ToSerial: ""},
+		},
+		{
+			ParentPN:    "ROCKET_ENGINE",
+			ChildPN:     "COMBUSTION_CHAMBER",
+			QtyPer:      entities.Quantity(1),
+			FindNumber:  200,
+			Effectivity: entities.SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
+		},
+		{
+			ParentPN:    "ROCKET_ENGINE",
+			ChildPN:     "VALVE_ASSEMBLY",
+			QtyPer:      entities.Quantity(4),
+			FindNumber:  300,
+			Effectivity: entities.SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
+		},
+	}
+
+	for _, bomLine := range bomLines {
+		err := bomRepo.SaveBOMLine(bomLine)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	// Add some inventory
+	baseDate := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
+
+	serialInventory := &entities.SerializedInventory{
+		PartNumber:   "ROCKET_ENGINE",
+		SerialNumber: "F1_001",
+		Location:     "KENNEDY",
+		Status:       entities.Available,
+		ReceiptDate:  baseDate,
+	}
+	err := inventoryRepo.SaveSerializedInventory(serialInventory)
+	if err != nil {
+		panic(err)
+	}
+
+	lotInventory := &entities.InventoryLot{
+		PartNumber:  "VALVE_ASSEMBLY",
+		LotNumber:   "VALVE_LOT_001",
+		Location:    "KENNEDY",
+		Quantity:    entities.Quantity(15),
+		ReceiptDate: baseDate.Add(-30 * 24 * time.Hour),
+		Status:      entities.Available,
+	}
+	err = inventoryRepo.SaveInventoryLot(lotInventory)
+	if err != nil {
+		panic(err)
+	}
+
+	return bomRepo, itemRepo, inventoryRepo
 }

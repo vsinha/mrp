@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vsinha/mrp/pkg/application/services"
+	"github.com/vsinha/mrp/pkg/application/services/criticalpath"
+	"github.com/vsinha/mrp/pkg/application/services/mrp"
+	"github.com/vsinha/mrp/pkg/application/services/orchestration"
 	"github.com/vsinha/mrp/pkg/domain/entities"
 	"github.com/vsinha/mrp/pkg/domain/services/bom_validator"
 	"github.com/vsinha/mrp/pkg/infrastructure/repositories/csv"
@@ -158,9 +160,9 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	}
 
 	// Create services
-	mrpService := services.NewMRPService()
-	criticalPathService := services.NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
-	orchestrator := services.NewPlanningOrchestrator(
+	mrpService := mrp.NewMRPService()
+	criticalPathService := criticalpath.NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
+	orchestrator := orchestration.NewPlanningOrchestrator(
 		mrpService,
 		criticalPathService,
 		bomRepo,
