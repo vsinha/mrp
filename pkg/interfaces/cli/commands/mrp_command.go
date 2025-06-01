@@ -102,14 +102,16 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	}
 
 	// Create repositories
-	bomRepo := memory.NewBOMRepository(len(items), len(bomLines))
-	err = bomRepo.LoadItems(items)
-	if err != nil {
-		return fmt.Errorf("failed to load items into repository: %w", err)
-	}
+	bomRepo := memory.NewBOMRepository(len(bomLines))
 	err = bomRepo.LoadBOMLines(bomLines)
 	if err != nil {
 		return fmt.Errorf("failed to load BOM lines into repository: %w", err)
+	}
+
+	itemRepo := memory.NewItemRepository(len(items))
+	err = itemRepo.LoadItems(items)
+	if err != nil {
+		return fmt.Errorf("failed to load items into repository: %w", err)
 	}
 
 	inventoryRepo := memory.NewInventoryRepository()
@@ -130,12 +132,12 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 
 	// Create services
 	mrpService := services.NewMRPService()
-	criticalPathService := services.NewCriticalPathService(bomRepo, bomRepo, inventoryRepo, nil)
+	criticalPathService := services.NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
 	orchestrator := services.NewPlanningOrchestrator(
 		mrpService,
 		criticalPathService,
 		bomRepo,
-		bomRepo,
+		itemRepo,
 		inventoryRepo,
 		demandRepo,
 	)
@@ -154,7 +156,7 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 		ctx,
 		demands,
 		bomRepo,
-		bomRepo,
+		itemRepo,
 		inventoryRepo,
 		demandRepo,
 	)

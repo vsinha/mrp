@@ -11,27 +11,22 @@ import (
 
 // BOMRepository provides a memory-efficient BOM storage implementation
 type BOMRepository struct {
-	items      []entities.Item
-	itemsMap   map[entities.PartNumber]int
 	bomLines   []entities.BOMLine
 	bomIndexes map[entities.PartNumber][]int
 	serialComp *services.SerialComparator
 }
 
 // NewBOMRepository creates a memory-efficient BOM repository
-func NewBOMRepository(expectedItems, expectedBOMLines int) *BOMRepository {
+func NewBOMRepository(expectedBOMLines int) *BOMRepository {
 	return &BOMRepository{
-		items:      make([]entities.Item, 0, expectedItems),
-		itemsMap:   make(map[entities.PartNumber]int, expectedItems),
 		bomLines:   make([]entities.BOMLine, 0, expectedBOMLines),
-		bomIndexes: make(map[entities.PartNumber][]int, expectedItems),
+		bomIndexes: make(map[entities.PartNumber][]int, expectedBOMLines/10),
 		serialComp: services.NewSerialComparator(),
 	}
 }
 
 // Verify interface compliance
 var _ repositories.BOMRepository = (*BOMRepository)(nil)
-var _ repositories.ItemRepository = (*BOMRepository)(nil)
 
 // LoadBOMLines loads BOM lines into the repository
 func (r *BOMRepository) LoadBOMLines(lines []*entities.BOMLine) error {
@@ -39,38 +34,6 @@ func (r *BOMRepository) LoadBOMLines(lines []*entities.BOMLine) error {
 		r.AddBOMLine(*line)
 	}
 	return nil
-}
-
-// LoadItems loads items into the repository (ItemRepository interface)
-func (r *BOMRepository) LoadItems(items []*entities.Item) error {
-	for _, item := range items {
-		r.AddItem(*item)
-	}
-	return nil
-}
-
-// AddItem adds an item to the repository
-func (r *BOMRepository) AddItem(item entities.Item) {
-	r.itemsMap[item.PartNumber] = len(r.items)
-	r.items = append(r.items, item)
-}
-
-// GetItem returns item master data for a part number (ItemRepository interface)
-func (r *BOMRepository) GetItem(partNumber entities.PartNumber) (*entities.Item, error) {
-	index, exists := r.itemsMap[partNumber]
-	if !exists {
-		return nil, fmt.Errorf("item not found: %s", partNumber)
-	}
-	return &r.items[index], nil
-}
-
-// GetAllItems returns all items (ItemRepository interface)
-func (r *BOMRepository) GetAllItems() ([]*entities.Item, error) {
-	var items []*entities.Item
-	for i := range r.items {
-		items = append(items, &r.items[i])
-	}
-	return items, nil
 }
 
 // AddBOMLine adds a BOM line to the repository
@@ -129,12 +92,6 @@ func (r *BOMRepository) GetAllBOMLines() ([]*entities.BOMLine, error) {
 // SaveBOMLine saves a BOM line to the repository
 func (r *BOMRepository) SaveBOMLine(line *entities.BOMLine) error {
 	r.AddBOMLine(*line)
-	return nil
-}
-
-// SaveItem saves an item to the repository (ItemRepository interface)
-func (r *BOMRepository) SaveItem(item *entities.Item) error {
-	r.AddItem(*item)
 	return nil
 }
 

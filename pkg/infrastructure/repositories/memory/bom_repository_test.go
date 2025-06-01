@@ -8,7 +8,7 @@ import (
 )
 
 func TestBOMRepository_SaveAndGetBOMLine(t *testing.T) {
-	repo := NewBOMRepository(10, 10)
+	repo := NewBOMRepository(10)
 
 	bomLine := &entities.BOMLine{
 		ParentPN:    "ASSEMBLY_A",
@@ -49,45 +49,7 @@ func TestBOMRepository_SaveAndGetBOMLine(t *testing.T) {
 }
 
 func TestBOMRepository_GetEffectiveLines(t *testing.T) {
-	repo := NewBOMRepository(10, 10)
-
-	// Add items first
-	items := []*entities.Item{
-		{
-			PartNumber:    "ENGINE",
-			Description:   "Engine Assembly",
-			LeadTimeDays:  30,
-			LotSizeRule:   entities.LotForLot,
-			MinOrderQty:   entities.Quantity(1),
-			SafetyStock:   entities.Quantity(0),
-			UnitOfMeasure: "EA",
-		},
-		{
-			PartNumber:    "TURBOPUMP_V1",
-			Description:   "Turbopump V1",
-			LeadTimeDays:  15,
-			LotSizeRule:   entities.LotForLot,
-			MinOrderQty:   entities.Quantity(1),
-			SafetyStock:   entities.Quantity(0),
-			UnitOfMeasure: "EA",
-		},
-		{
-			PartNumber:    "TURBOPUMP_V2",
-			Description:   "Turbopump V2",
-			LeadTimeDays:  15,
-			LotSizeRule:   entities.LotForLot,
-			MinOrderQty:   entities.Quantity(1),
-			SafetyStock:   entities.Quantity(0),
-			UnitOfMeasure: "EA",
-		},
-	}
-
-	for _, item := range items {
-		err := repo.SaveItem(item)
-		if err != nil {
-			t.Fatalf("Failed to save item: %v", err)
-		}
-	}
+	repo := NewBOMRepository(20)
 
 	// Add BOM lines with different serial effectivities
 	bomLines := []*entities.BOMLine{
@@ -149,103 +111,20 @@ func TestBOMRepository_GetEffectiveLines(t *testing.T) {
 	}
 }
 
-func TestBOMRepository_GetItem(t *testing.T) {
-	repo := NewBOMRepository(10, 10)
-
-	item := &entities.Item{
-		PartNumber:    "TEST_PART",
-		Description:   "Test Part",
-		LeadTimeDays:  20,
-		LotSizeRule:   entities.MinimumQty,
-		MinOrderQty:   entities.Quantity(5),
-		SafetyStock:   entities.Quantity(2),
-		UnitOfMeasure: "EA",
-	}
-
-	// Save item
-	err := repo.SaveItem(item)
-	if err != nil {
-		t.Fatalf("Failed to save item: %v", err)
-	}
-
-	// Get item
-	retrieved, err := repo.GetItem("TEST_PART")
-	if err != nil {
-		t.Fatalf("Failed to get item: %v", err)
-	}
-
-	if retrieved.PartNumber != item.PartNumber {
-		t.Errorf("Expected part number %s, got %s", item.PartNumber, retrieved.PartNumber)
-	}
-
-	if retrieved.Description != item.Description {
-		t.Errorf("Expected description %s, got %s", item.Description, retrieved.Description)
-	}
-
-	if retrieved.LeadTimeDays != item.LeadTimeDays {
-		t.Errorf("Expected lead time %d, got %d", item.LeadTimeDays, retrieved.LeadTimeDays)
-	}
-
-	if retrieved.LotSizeRule != item.LotSizeRule {
-		t.Errorf("Expected lot size rule %v, got %v", item.LotSizeRule, retrieved.LotSizeRule)
-	}
-}
-
-func TestBOMRepository_GetItem_NotFound(t *testing.T) {
-	repo := NewBOMRepository(10, 10)
-
-	_, err := repo.GetItem("NONEXISTENT")
-	if err == nil {
-		t.Error("Expected error for nonexistent item, got none")
-	}
-}
-
 func TestBOMRepository_MultipleChildren(t *testing.T) {
-	repo := NewBOMRepository(10, 10)
+	repo := NewBOMRepository(20)
 
-	// Add parent item
-	parentItem := &entities.Item{
-		PartNumber:    "ASSEMBLY",
-		Description:   "Test Assembly",
-		LeadTimeDays:  30,
-		LotSizeRule:   entities.LotForLot,
-		MinOrderQty:   entities.Quantity(1),
-		SafetyStock:   entities.Quantity(0),
-		UnitOfMeasure: "EA",
-	}
-
-	err := repo.SaveItem(parentItem)
-	if err != nil {
-		t.Fatalf("Failed to save parent item: %v", err)
-	}
-
-	// Add child items
+	// Add BOM lines for multiple children
 	for i := 1; i <= 3; i++ {
-		childItem := &entities.Item{
-			PartNumber:    entities.PartNumber(fmt.Sprintf("CHILD_%d", i)),
-			Description:   fmt.Sprintf("Child %d", i),
-			LeadTimeDays:  10,
-			LotSizeRule:   entities.LotForLot,
-			MinOrderQty:   entities.Quantity(1),
-			SafetyStock:   entities.Quantity(0),
-			UnitOfMeasure: "EA",
-		}
-
-		err := repo.SaveItem(childItem)
-		if err != nil {
-			t.Fatalf("Failed to save child item: %v", err)
-		}
-
-		// Add BOM line
 		bomLine := &entities.BOMLine{
 			ParentPN:    "ASSEMBLY",
-			ChildPN:     childItem.PartNumber,
+			ChildPN:     entities.PartNumber(fmt.Sprintf("CHILD_%d", i)),
 			QtyPer:      entities.Quantity(i),
 			FindNumber:  i * 100,
 			Effectivity: entities.SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
 		}
 
-		err = repo.SaveBOMLine(bomLine)
+		err := repo.SaveBOMLine(bomLine)
 		if err != nil {
 			t.Fatalf("Failed to save BOM line: %v", err)
 		}
@@ -276,7 +155,7 @@ func TestBOMRepository_MultipleChildren(t *testing.T) {
 }
 
 func TestBOMRepository_GetAlternateGroups(t *testing.T) {
-	repo := NewBOMRepository(10, 20)
+	repo := NewBOMRepository(20)
 
 	// Create test effectivity
 	effectivity, err := entities.NewSerialEffectivity("AS501", "AS505")
@@ -334,7 +213,7 @@ func TestBOMRepository_GetAlternateGroups(t *testing.T) {
 }
 
 func TestBOMRepository_GetEffectiveAlternates(t *testing.T) {
-	repo := NewBOMRepository(10, 20)
+	repo := NewBOMRepository(20)
 
 	// Create test effectivities
 	earlyEffectivity, err := entities.NewSerialEffectivity("AS501", "AS505")
@@ -425,7 +304,7 @@ func TestBOMRepository_GetEffectiveAlternates(t *testing.T) {
 }
 
 func TestBOMRepository_GetAlternateGroups_NonExistentPart(t *testing.T) {
-	repo := NewBOMRepository(10, 20)
+	repo := NewBOMRepository(20)
 
 	// Test: Non-existent part should return empty map
 	groups, err := repo.GetAlternateGroups("NON_EXISTENT")

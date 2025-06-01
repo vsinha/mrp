@@ -139,7 +139,7 @@ func TestMRPService_CriticalPathAnalysis_MultiplePaths(t *testing.T) {
 	ctx := context.Background()
 
 	// Build a BOM with multiple paths of different lengths
-	bomRepo := memory.NewBOMRepository(10, 20)
+	bomRepo := memory.NewBOMRepository(20)
 	itemRepo := memory.NewItemRepository(10)
 	inventoryRepo := memory.NewInventoryRepository()
 	demandRepo := memory.NewDemandRepository()
@@ -325,7 +325,7 @@ func TestMRPService_CriticalPathAnalysis_MultiplePaths(t *testing.T) {
 
 // buildCriticalPathTestData creates test data for critical path analysis
 func buildCriticalPathTestData() (*memory.BOMRepository, *memory.ItemRepository, *memory.InventoryRepository) {
-	bomRepo := memory.NewBOMRepository(4, 3)
+	bomRepo := memory.NewBOMRepository(3)
 	itemRepo := memory.NewItemRepository(4)
 	inventoryRepo := memory.NewInventoryRepository()
 

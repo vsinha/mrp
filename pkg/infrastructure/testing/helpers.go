@@ -104,7 +104,7 @@ func mustCreateInventoryLot(
 
 // BuildAerospaceTestData builds the aerospace test scenario from the specification
 func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *memory.InventoryRepository, *memory.DemandRepository) {
-	bomRepo := memory.NewBOMRepository(10, 20) // 10 items, 20 BOM lines
+	bomRepo := memory.NewBOMRepository(20) // 20 BOM lines
 	itemRepo := memory.NewItemRepository(10)
 	inventoryRepo := memory.NewInventoryRepository()
 	demandRepo := memory.NewDemandRepository()
@@ -231,7 +231,7 @@ func BuildAerospaceTestData() (*memory.BOMRepository, *memory.ItemRepository, *m
 
 // BuildSimpleTestData creates simple test data for basic tests
 func BuildSimpleTestData() (*memory.BOMRepository, *memory.ItemRepository, *memory.InventoryRepository, *memory.DemandRepository) {
-	bomRepo := memory.NewBOMRepository(5, 5) // 5 items, 5 BOM lines
+	bomRepo := memory.NewBOMRepository(5) // 5 BOM lines
 	itemRepo := memory.NewItemRepository(5)
 	inventoryRepo := memory.NewInventoryRepository()
 	demandRepo := memory.NewDemandRepository()

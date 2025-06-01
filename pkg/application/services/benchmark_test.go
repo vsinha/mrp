@@ -150,7 +150,7 @@ func BenchmarkMRPService_LargeScale(b *testing.B) {
 func setupDeepBOM(
 	levels int,
 ) (*memory.BOMRepository, *memory.ItemRepository, *memory.InventoryRepository, *memory.DemandRepository) {
-	bomRepo := memory.NewBOMRepository(levels*2, levels*2)
+	bomRepo := memory.NewBOMRepository(levels * 2)
 	itemRepo := memory.NewItemRepository(levels * 2)
 	inventoryRepo := memory.NewInventoryRepository()
 	demandRepo := memory.NewDemandRepository()
@@ -197,7 +197,7 @@ func setupDeepBOM(
 func setupWideBOM(
 	childrenCount int,
 ) (*memory.BOMRepository, *memory.ItemRepository, *memory.InventoryRepository, *memory.DemandRepository) {
-	bomRepo := memory.NewBOMRepository(childrenCount+1, childrenCount)
+	bomRepo := memory.NewBOMRepository(childrenCount)
 	itemRepo := memory.NewItemRepository(childrenCount + 1)
 	inventoryRepo := memory.NewInventoryRepository()
 	demandRepo := memory.NewDemandRepository()
@@ -257,7 +257,7 @@ func setupWideBOM(
 func setupLargeScaleBOM(
 	totalParts int,
 ) (*memory.BOMRepository, *memory.ItemRepository, *memory.InventoryRepository, *memory.DemandRepository) {
-	bomRepo := memory.NewBOMRepository(totalParts, totalParts*2)
+	bomRepo := memory.NewBOMRepository(totalParts * 2)
 	itemRepo := memory.NewItemRepository(totalParts)
 	inventoryRepo := memory.NewInventoryRepository()
 	demandRepo := memory.NewDemandRepository()

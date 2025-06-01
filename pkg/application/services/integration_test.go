@@ -144,7 +144,7 @@ func TestMRPIntegration_PerformanceWithLargeBOM(t *testing.T) {
 	partsPerLevel := 10
 
 	// Build a larger BOM structure for performance testing
-	bomRepo := memory.NewBOMRepository(levels*partsPerLevel, levels*partsPerLevel*partsPerLevel)
+	bomRepo := memory.NewBOMRepository(levels * partsPerLevel * partsPerLevel)
 	itemRepo := memory.NewItemRepository(levels * partsPerLevel)
 	inventoryRepo := memory.NewInventoryRepository()
 	demandRepo := memory.NewDemandRepository()
