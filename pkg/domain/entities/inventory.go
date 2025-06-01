@@ -1,6 +1,9 @@
 package entities
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // InventoryStatus represents the status of inventory
 type InventoryStatus int
@@ -35,6 +38,31 @@ type InventoryLot struct {
 	Status      InventoryStatus
 }
 
+// NewInventoryLot creates a validated InventoryLot
+func NewInventoryLot(partNumber PartNumber, lotNumber, location string, quantity Quantity, receiptDate time.Time, status InventoryStatus) (*InventoryLot, error) {
+	if string(partNumber) == "" {
+		return nil, fmt.Errorf("part number cannot be empty")
+	}
+	if lotNumber == "" {
+		return nil, fmt.Errorf("lot number cannot be empty")
+	}
+	if location == "" {
+		return nil, fmt.Errorf("location cannot be empty")
+	}
+	if quantity < 0 {
+		return nil, fmt.Errorf("quantity cannot be negative, got %d", quantity)
+	}
+
+	return &InventoryLot{
+		PartNumber:  partNumber,
+		LotNumber:   lotNumber,
+		Location:    location,
+		Quantity:    quantity,
+		ReceiptDate: receiptDate,
+		Status:      status,
+	}, nil
+}
+
 // SerializedInventory represents serialized inventory items
 type SerializedInventory struct {
 	PartNumber   PartNumber
@@ -42,6 +70,27 @@ type SerializedInventory struct {
 	Location     string
 	Status       InventoryStatus
 	ReceiptDate  time.Time
+}
+
+// NewSerializedInventory creates a validated SerializedInventory
+func NewSerializedInventory(partNumber PartNumber, serialNumber, location string, status InventoryStatus, receiptDate time.Time) (*SerializedInventory, error) {
+	if string(partNumber) == "" {
+		return nil, fmt.Errorf("part number cannot be empty")
+	}
+	if serialNumber == "" {
+		return nil, fmt.Errorf("serial number cannot be empty")
+	}
+	if location == "" {
+		return nil, fmt.Errorf("location cannot be empty")
+	}
+
+	return &SerializedInventory{
+		PartNumber:   partNumber,
+		SerialNumber: serialNumber,
+		Location:     location,
+		Status:       status,
+		ReceiptDate:  receiptDate,
+	}, nil
 }
 
 // InventoryAllocation represents a specific allocation from inventory

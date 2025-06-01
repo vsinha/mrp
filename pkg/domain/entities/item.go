@@ -1,5 +1,7 @@
 package entities
 
+import "fmt"
+
 // PartNumber represents a unique part identifier
 type PartNumber string
 
@@ -38,4 +40,42 @@ type Item struct {
 	MinOrderQty   Quantity
 	SafetyStock   Quantity
 	UnitOfMeasure string
+}
+
+// NewItem creates a validated Item
+func NewItem(partNumber PartNumber, description string, leadTimeDays int, lotSizeRule LotSizeRule, minOrderQty, safetyStock Quantity, unitOfMeasure string) (*Item, error) {
+	// Validate inputs
+	if string(partNumber) == "" {
+		return nil, fmt.Errorf("part number cannot be empty")
+	}
+	if description == "" {
+		return nil, fmt.Errorf("description cannot be empty")
+	}
+	if leadTimeDays <= 0 {
+		return nil, fmt.Errorf("lead time must be positive, got %d", leadTimeDays)
+	}
+	if minOrderQty < 0 {
+		return nil, fmt.Errorf("minimum order quantity cannot be negative, got %d", minOrderQty)
+	}
+	if safetyStock < 0 {
+		return nil, fmt.Errorf("safety stock cannot be negative, got %d", safetyStock)
+	}
+	if unitOfMeasure == "" {
+		return nil, fmt.Errorf("unit of measure cannot be empty")
+	}
+
+	// Business rule validation
+	if (lotSizeRule == MinimumQty || lotSizeRule == StandardPack) && minOrderQty == 0 {
+		return nil, fmt.Errorf("lot sizing rule %s requires non-zero minimum order quantity", lotSizeRule)
+	}
+
+	return &Item{
+		PartNumber:    partNumber,
+		Description:   description,
+		LeadTimeDays:  leadTimeDays,
+		LotSizeRule:   lotSizeRule,
+		MinOrderQty:   minOrderQty,
+		SafetyStock:   safetyStock,
+		UnitOfMeasure: unitOfMeasure,
+	}, nil
 }

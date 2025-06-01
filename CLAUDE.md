@@ -7,3 +7,4 @@ Test: go test ./...
 - Naming: Use Go conventions (CamelCase for exported, camelCase for unexported)
 - When something doesn't work, debug and fix it - don't start over with a simple version
 - When you build put results in the bin/ folder
+- run `go fmt` after making any change
