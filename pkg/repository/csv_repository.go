@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/vsinha/mrp/pkg/mrp"
 )
 
@@ -158,7 +157,7 @@ func (r *CSVRepository) LoadInventory(filename string) ([]mrp.InventoryLot, []mr
 		
 		switch invType {
 		case "lot":
-			quantity, err := decimal.NewFromString(quantityStr)
+			quantity, err := strconv.ParseInt(quantityStr, 10, 64)
 			if err != nil {
 				return nil, nil, fmt.Errorf("invalid quantity in row %d: %s", i+2, quantityStr)
 			}
@@ -262,12 +261,12 @@ func parseItem(record []string) (mrp.Item, error) {
 		return mrp.Item{}, err
 	}
 	
-	minOrderQty, err := decimal.NewFromString(record[4])
+	minOrderQty, err := strconv.ParseInt(record[4], 10, 64)
 	if err != nil {
 		return mrp.Item{}, fmt.Errorf("invalid min_order_qty: %s", record[4])
 	}
 	
-	safetyStock, err := decimal.NewFromString(record[5])
+	safetyStock, err := strconv.ParseInt(record[5], 10, 64)
 	if err != nil {
 		return mrp.Item{}, fmt.Errorf("invalid safety_stock: %s", record[5])
 	}
@@ -289,7 +288,7 @@ func parseBOMLine(record []string) (mrp.BOMLine, error) {
 	parentPN := mrp.PartNumber(record[0])
 	childPN := mrp.PartNumber(record[1])
 	
-	qtyPer, err := decimal.NewFromString(record[2])
+	qtyPer, err := strconv.ParseInt(record[2], 10, 64)
 	if err != nil {
 		return mrp.BOMLine{}, fmt.Errorf("invalid qty_per: %s", record[2])
 	}
@@ -314,7 +313,7 @@ func parseBOMLine(record []string) (mrp.BOMLine, error) {
 func parseDemand(record []string) (mrp.DemandRequirement, error) {
 	partNumber := mrp.PartNumber(record[0])
 	
-	quantity, err := decimal.NewFromString(record[1])
+	quantity, err := strconv.ParseInt(record[1], 10, 64)
 	if err != nil {
 		return mrp.DemandRequirement{}, fmt.Errorf("invalid quantity: %s", record[1])
 	}

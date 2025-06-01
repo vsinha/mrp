@@ -4,8 +4,6 @@ import (
 	"context"
 	"testing"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 func TestEngine_ExplodeDemand_SingleLevel(t *testing.T) {
@@ -21,8 +19,8 @@ func TestEngine_ExplodeDemand_SingleLevel(t *testing.T) {
 		Description:     "Simple Assembly",
 		LeadTimeDays:    30,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -31,8 +29,8 @@ func TestEngine_ExplodeDemand_SingleLevel(t *testing.T) {
 		Description:     "Component A",
 		LeadTimeDays:    15,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -40,7 +38,7 @@ func TestEngine_ExplodeDemand_SingleLevel(t *testing.T) {
 	bomRepo.AddBOMLine(BOMLine{
 		ParentPN:     "SIMPLE_ASSEMBLY",
 		ChildPN:      "COMPONENT_A",
-		QtyPer:       Quantity(decimal.NewFromInt(2)),
+		QtyPer:       Quantity(2),
 		FindNumber:   100,
 		Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
 	})
@@ -53,7 +51,7 @@ func TestEngine_ExplodeDemand_SingleLevel(t *testing.T) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "SIMPLE_ASSEMBLY",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     needDate,
 			DemandSource: "TEST_ORDER",
 			Location:     "FACTORY",
@@ -79,14 +77,14 @@ func TestEngine_ExplodeDemand_SingleLevel(t *testing.T) {
 	for _, order := range result.PlannedOrders {
 		if order.PartNumber == "SIMPLE_ASSEMBLY" {
 			foundAssembly = true
-			if order.Quantity.Decimal().Cmp(decimal.NewFromInt(1)) != 0 {
-				t.Errorf("Expected assembly quantity 1, got %s", order.Quantity.Decimal())
+			if order.Quantity != 1 {
+				t.Errorf("Expected assembly quantity 1, got %d", order.Quantity)
 			}
 		}
 		if order.PartNumber == "COMPONENT_A" {
 			foundComponent = true
-			if order.Quantity.Decimal().Cmp(decimal.NewFromInt(2)) != 0 {
-				t.Errorf("Expected component quantity 2, got %s", order.Quantity.Decimal())
+			if order.Quantity != 2 {
+				t.Errorf("Expected component quantity 2, got %d", order.Quantity)
 			}
 		}
 	}
@@ -131,7 +129,7 @@ func TestEngine_ExplodeDemand_SerialEffectivity(t *testing.T) {
 			demands := []DemandRequirement{
 				{
 					PartNumber:   "SATURN_V",
-					Quantity:     Quantity(decimal.NewFromInt(1)),
+					Quantity:     Quantity(1),
 					NeedDate:     needDate,
 					DemandSource: "TEST_MISSION",
 					Location:     "KENNEDY",
@@ -173,8 +171,8 @@ func TestEngine_ExplodeDemand_InventoryAllocation(t *testing.T) {
 		Description:     "Test Part",
 		LeadTimeDays:    15,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -183,7 +181,7 @@ func TestEngine_ExplodeDemand_InventoryAllocation(t *testing.T) {
 		PartNumber:   "TEST_PART",
 		LotNumber:    "LOT001",
 		Location:     "WAREHOUSE",
-		Quantity:     Quantity(decimal.NewFromInt(5)),
+		Quantity:     Quantity(5),
 		ReceiptDate:  time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 		Status:       Available,
 	})
@@ -194,7 +192,7 @@ func TestEngine_ExplodeDemand_InventoryAllocation(t *testing.T) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "TEST_PART",
-			Quantity:     Quantity(decimal.NewFromInt(3)),
+			Quantity:     Quantity(3),
 			NeedDate:     time.Now().Add(30 * 24 * time.Hour),
 			DemandSource: "TEST_ORDER",
 			Location:     "WAREHOUSE",
@@ -218,12 +216,12 @@ func TestEngine_ExplodeDemand_InventoryAllocation(t *testing.T) {
 		t.Errorf("Expected allocation for TEST_PART, got %s", allocation.PartNumber)
 	}
 	
-	if allocation.AllocatedQty.Decimal().Cmp(decimal.NewFromInt(3)) != 0 {
-		t.Errorf("Expected allocated quantity 3, got %s", allocation.AllocatedQty.Decimal())
+	if allocation.AllocatedQty != 3 {
+		t.Errorf("Expected allocated quantity 3, got %d", allocation.AllocatedQty)
 	}
 	
-	if allocation.RemainingDemand.Decimal().Cmp(decimal.Zero) != 0 {
-		t.Errorf("Expected no remaining demand, got %s", allocation.RemainingDemand.Decimal())
+	if allocation.RemainingDemand != 0 {
+		t.Errorf("Expected no remaining demand, got %d", allocation.RemainingDemand)
 	}
 }
 
@@ -240,8 +238,8 @@ func TestEngine_ExplodeDemand_Memoization(t *testing.T) {
 		Description:     "Level 0 Assembly",
 		LeadTimeDays:    30,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -250,8 +248,8 @@ func TestEngine_ExplodeDemand_Memoization(t *testing.T) {
 		Description:     "Level 1 Subassembly",
 		LeadTimeDays:    20,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -260,8 +258,8 @@ func TestEngine_ExplodeDemand_Memoization(t *testing.T) {
 		Description:     "Level 2 Component",
 		LeadTimeDays:    10,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -269,7 +267,7 @@ func TestEngine_ExplodeDemand_Memoization(t *testing.T) {
 	bomRepo.AddBOMLine(BOMLine{
 		ParentPN:     "LEVEL_0",
 		ChildPN:      "LEVEL_1",
-		QtyPer:       Quantity(decimal.NewFromInt(2)),
+		QtyPer:       Quantity(2),
 		FindNumber:   100,
 		Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
 	})
@@ -277,7 +275,7 @@ func TestEngine_ExplodeDemand_Memoization(t *testing.T) {
 	bomRepo.AddBOMLine(BOMLine{
 		ParentPN:     "LEVEL_1",
 		ChildPN:      "LEVEL_2",
-		QtyPer:       Quantity(decimal.NewFromInt(3)),
+		QtyPer:       Quantity(3),
 		FindNumber:   200,
 		Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
 	})
@@ -288,7 +286,7 @@ func TestEngine_ExplodeDemand_Memoization(t *testing.T) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "LEVEL_0",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     time.Now().Add(60 * 24 * time.Hour),
 			DemandSource: "TEST_ORDER",
 			Location:     "FACTORY",
@@ -311,8 +309,8 @@ func TestEngine_ExplodeDemand_Memoization(t *testing.T) {
 	for _, order := range result.PlannedOrders {
 		if order.PartNumber == "LEVEL_2" {
 			foundLevel2 = true
-			if order.Quantity.Decimal().Cmp(decimal.NewFromInt(6)) != 0 {
-				t.Errorf("Expected LEVEL_2 quantity 6, got %s", order.Quantity.Decimal())
+			if order.Quantity != 6 {
+				t.Errorf("Expected LEVEL_2 quantity 6, got %d", order.Quantity)
 			}
 			break
 		}
@@ -337,7 +335,7 @@ func TestEngine_ExplodeDemand_MultipleTargetSerials(t *testing.T) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "SATURN_V",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     needDate,
 			DemandSource: "APOLLO_OLD",
 			Location:     "KENNEDY",
@@ -345,7 +343,7 @@ func TestEngine_ExplodeDemand_MultipleTargetSerials(t *testing.T) {
 		},
 		{
 			PartNumber:   "SATURN_V",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     needDate,
 			DemandSource: "APOLLO_NEW",
 			Location:     "KENNEDY",

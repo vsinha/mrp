@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 // TestLargeScaleAerospaceBOM demonstrates the full capabilities of the MRP system with large BOMs
@@ -62,7 +60,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 		demands := []DemandRequirement{
 			{
 				PartNumber:   "L0_ASM_000000", // Top-level assembly
-				Quantity:     Quantity(decimal.NewFromInt(3)), // Multiple units
+				Quantity:     Quantity(3), // Multiple units
 				NeedDate:     time.Now().Add(200 * 24 * time.Hour),
 				DemandSource: "LARGE_SCALE_TEST",
 				Location:     "HUNTSVILLE",
@@ -70,7 +68,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 			},
 			{
 				PartNumber:   "L0_ASM_000001", // Another top-level assembly
-				Quantity:     Quantity(decimal.NewFromInt(2)),
+				Quantity:     Quantity(2),
 				NeedDate:     time.Now().Add(180 * 24 * time.Hour),
 				DemandSource: "LARGE_SCALE_TEST_2",
 				Location:     "KENNEDY",
@@ -154,7 +152,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 		demands := []DemandRequirement{
 			{
 				PartNumber:   "L0_ASM_000000",
-				Quantity:     Quantity(decimal.NewFromInt(5)), // Even more units
+				Quantity:     Quantity(5), // Even more units
 				NeedDate:     time.Now().Add(200 * 24 * time.Hour),
 				DemandSource: "OPTIMIZED_LARGE_SCALE_TEST",
 				Location:     "HUNTSVILLE",
@@ -191,7 +189,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 		demands := []DemandRequirement{
 			{
 				PartNumber:   "L0_ASM_000002",
-				Quantity:     Quantity(decimal.NewFromInt(1)),
+				Quantity:     Quantity(1),
 				NeedDate:     time.Now().Add(150 * 24 * time.Hour),
 				DemandSource: "MEMORY_TEST",
 				Location:     "WALLOPS",
@@ -243,7 +241,7 @@ func TestLargeScaleAerospaceBOM(t *testing.T) {
 				demands := []DemandRequirement{
 					{
 						PartNumber:   PartNumber(fmt.Sprintf("L0_ASM_%06d", id)),
-						Quantity:     Quantity(decimal.NewFromInt(1)),
+						Quantity:     Quantity(1),
 						NeedDate:     time.Now().Add(time.Duration(120+id*10) * 24 * time.Hour),
 						DemandSource: fmt.Sprintf("CONCURRENT_TEST_%d", id),
 						Location:     "KENNEDY",

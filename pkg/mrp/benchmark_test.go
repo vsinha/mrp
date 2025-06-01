@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 func BenchmarkMRPEngine_SingleLevel(b *testing.B) {
@@ -17,7 +15,7 @@ func BenchmarkMRPEngine_SingleLevel(b *testing.B) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "ASSEMBLY_A",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     time.Now().Add(30 * 24 * time.Hour),
 			DemandSource: "BENCHMARK",
 			Location:     "FACTORY",
@@ -42,7 +40,7 @@ func BenchmarkMRPEngine_DeepBOM(b *testing.B) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "LEVEL_0",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     time.Now().Add(100 * 24 * time.Hour),
 			DemandSource: "BENCHMARK",
 			Location:     "FACTORY",
@@ -67,7 +65,7 @@ func BenchmarkMRPEngine_WideBOM(b *testing.B) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "TOP_ASSEMBLY",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     time.Now().Add(60 * 24 * time.Hour),
 			DemandSource: "BENCHMARK",
 			Location:     "FACTORY",
@@ -92,7 +90,7 @@ func BenchmarkMRPEngine_SerialEffectivity(b *testing.B) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "SATURN_V",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     time.Date(2025, 8, 15, 0, 0, 0, 0, time.UTC),
 			DemandSource: "BENCHMARK",
 			Location:     "KENNEDY",
@@ -120,8 +118,8 @@ func setupSimpleBOM() (*BOMRepository, *InventoryRepository) {
 		Description:     "Simple Assembly",
 		LeadTimeDays:    30,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -130,15 +128,15 @@ func setupSimpleBOM() (*BOMRepository, *InventoryRepository) {
 		Description:     "Component B",
 		LeadTimeDays:    15,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
 	bomRepo.AddBOMLine(BOMLine{
 		ParentPN:     "ASSEMBLY_A",
 		ChildPN:      "PART_B",
-		QtyPer:       Quantity(decimal.NewFromInt(2)),
+		QtyPer:       Quantity(2),
 		FindNumber:   100,
 		Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
 	})
@@ -158,8 +156,8 @@ func setupDeepBOM(levels int) (*BOMRepository, *InventoryRepository) {
 			Description:     fmt.Sprintf("Level %d Part", level),
 			LeadTimeDays:    (level + 1) * 5,
 			LotSizeRule:     LotForLot,
-			MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-			SafetyStock:     Quantity(decimal.Zero),
+			MinOrderQty:     Quantity(1),
+			SafetyStock:     Quantity(0),
 			UnitOfMeasure:   "EA",
 		})
 		
@@ -169,7 +167,7 @@ func setupDeepBOM(levels int) (*BOMRepository, *InventoryRepository) {
 			bomRepo.AddBOMLine(BOMLine{
 				ParentPN:     partNum,
 				ChildPN:      childPartNum,
-				QtyPer:       Quantity(decimal.NewFromInt(2)),
+				QtyPer:       Quantity(2),
 				FindNumber:   100,
 				Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
 			})
@@ -189,8 +187,8 @@ func setupWideBOM(width int) (*BOMRepository, *InventoryRepository) {
 		Description:     "Top Level Assembly",
 		LeadTimeDays:    60,
 		LotSizeRule:     LotForLot,
-		MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-		SafetyStock:     Quantity(decimal.Zero),
+		MinOrderQty:     Quantity(1),
+		SafetyStock:     Quantity(0),
 		UnitOfMeasure:   "EA",
 	})
 	
@@ -202,15 +200,15 @@ func setupWideBOM(width int) (*BOMRepository, *InventoryRepository) {
 			Description:     fmt.Sprintf("Child Part %d", i),
 			LeadTimeDays:    30,
 			LotSizeRule:     LotForLot,
-			MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-			SafetyStock:     Quantity(decimal.Zero),
+			MinOrderQty:     Quantity(1),
+			SafetyStock:     Quantity(0),
 			UnitOfMeasure:   "EA",
 		})
 		
 		bomRepo.AddBOMLine(BOMLine{
 			ParentPN:     "TOP_ASSEMBLY",
 			ChildPN:      partNum,
-			QtyPer:       Quantity(decimal.NewFromInt(1)),
+			QtyPer:       Quantity(1),
 			FindNumber:   i + 1,
 			Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
 		})

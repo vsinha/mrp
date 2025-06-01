@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/vsinha/mrp/pkg/mrp"
@@ -59,7 +60,7 @@ func generateTextOutput(result *mrp.MRPResult, config OutputConfig) error {
 		for _, order := range sortedOrders {
 			output += fmt.Sprintf("Part: %-20s Qty: %8s  Due: %s\n",
 				order.PartNumber,
-				order.Quantity.Decimal().String(),
+				strconv.FormatInt(int64(order.Quantity), 10),
 				order.DueDate.Format("2006-01-02"))
 			output += fmt.Sprintf("  Type: %-8s Location: %-12s Serial: %s\n",
 				order.OrderType.String(),
@@ -79,18 +80,18 @@ func generateTextOutput(result *mrp.MRPResult, config OutputConfig) error {
 			output += fmt.Sprintf("Part: %-20s Location: %-12s\n",
 				alloc.PartNumber, alloc.Location)
 			output += fmt.Sprintf("  Allocated: %8s  Remaining Demand: %8s\n",
-				alloc.AllocatedQty.Decimal().String(),
-				alloc.RemainingDemand.Decimal().String())
+				strconv.FormatInt(int64(alloc.AllocatedQty), 10),
+				strconv.FormatInt(int64(alloc.RemainingDemand), 10))
 			
 			if len(alloc.AllocatedFrom) > 0 {
 				output += "  Allocated From:\n"
 				for _, from := range alloc.AllocatedFrom {
 					if from.SerialNumber != "" {
 						output += fmt.Sprintf("    Serial %-15s Qty: %s\n",
-							from.SerialNumber, from.Quantity.Decimal().String())
+							from.SerialNumber, strconv.FormatInt(int64(from.Quantity), 10))
 					} else {
 						output += fmt.Sprintf("    Lot %-18s Qty: %s\n",
-							from.LotNumber, from.Quantity.Decimal().String())
+							from.LotNumber, strconv.FormatInt(int64(from.Quantity), 10))
 					}
 				}
 			}
@@ -113,7 +114,7 @@ func generateTextOutput(result *mrp.MRPResult, config OutputConfig) error {
 		for _, shortage := range sortedShortages {
 			output += fmt.Sprintf("Part: %-20s Short: %8s  Need: %s\n",
 				shortage.PartNumber,
-				shortage.ShortQty.Decimal().String(),
+				strconv.FormatInt(int64(shortage.ShortQty), 10),
 				shortage.NeedDate.Format("2006-01-02"))
 			output += fmt.Sprintf("  Location: %-12s Serial: %s\n",
 				shortage.Location, shortage.TargetSerial)
@@ -142,6 +143,39 @@ func generateTextOutput(result *mrp.MRPResult, config OutputConfig) error {
 			output += "  Entries by BOM Level:\n"
 			for level, count := range levelStats {
 				output += fmt.Sprintf("    Level %s: %d entries\n", level, count)
+			}
+		}
+		output += "\n"
+	}
+	
+	// Critical Path Analysis
+	if len(config.CriticalPathResults) > 0 {
+		output += "📈 CRITICAL PATH ANALYSIS\n"
+		output += "────────────────────────────────────────────────────────────────\n"
+		
+		for i, analysis := range config.CriticalPathResults {
+			output += fmt.Sprintf("\nDemand %d - %s (Serial: %s):\n", i+1, analysis.TopLevelPart, analysis.TargetSerial)
+			output += fmt.Sprintf("  %s\n", analysis.GetCriticalPathSummary())
+			output += fmt.Sprintf("  Total paths analyzed: %d\n", analysis.TotalPaths)
+			output += fmt.Sprintf("  Inventory coverage: %.1f%%\n", analysis.GetInventoryCoverage())
+			
+			if len(analysis.CriticalPath.PathDetails) > 0 {
+				output += "  Critical path details:\n"
+				for _, node := range analysis.CriticalPath.PathDetails {
+					inventoryStatus := "No inventory"
+					if node.HasInventory {
+						inventoryStatus = fmt.Sprintf("Has %s units", strconv.FormatInt(int64(node.InventoryQty), 10))
+					}
+					output += fmt.Sprintf("    Level %d: %-20s (%3d → %3d days) - %s\n", 
+						node.Level, node.PartNumber, node.LeadTimeDays, node.EffectiveLeadTime, inventoryStatus)
+				}
+			}
+			
+			if len(analysis.TopPaths) > 1 {
+				output += fmt.Sprintf("  Top %d paths:\n", len(analysis.TopPaths))
+				for j, path := range analysis.TopPaths {
+					output += fmt.Sprintf("    %d. %s\n", j+1, path.GetPathSummary())
+				}
 			}
 		}
 		output += "\n"
@@ -309,7 +343,7 @@ func writeOrdersCSV(orders []mrp.PlannedOrder, filename string) error {
 	for _, order := range orders {
 		record := []string{
 			string(order.PartNumber),
-			order.Quantity.Decimal().String(),
+			strconv.FormatInt(int64(order.Quantity), 10),
 			order.StartDate.Format("2006-01-02"),
 			order.DueDate.Format("2006-01-02"),
 			order.DemandTrace,
@@ -351,8 +385,8 @@ func writeAllocationsCSV(allocations []mrp.AllocationResult, filename string) er
 			record := []string{
 				string(alloc.PartNumber),
 				alloc.Location,
-				alloc.AllocatedQty.Decimal().String(),
-				alloc.RemainingDemand.Decimal().String(),
+				strconv.FormatInt(int64(alloc.AllocatedQty), 10),
+				strconv.FormatInt(int64(alloc.RemainingDemand), 10),
 				"",
 				"",
 				"",
@@ -376,11 +410,11 @@ func writeAllocationsCSV(allocations []mrp.AllocationResult, filename string) er
 				record := []string{
 					string(alloc.PartNumber),
 					alloc.Location,
-					alloc.AllocatedQty.Decimal().String(),
-					alloc.RemainingDemand.Decimal().String(),
+					strconv.FormatInt(int64(alloc.AllocatedQty), 10),
+					strconv.FormatInt(int64(alloc.RemainingDemand), 10),
 					sourceType,
 					sourceID,
-					from.Quantity.Decimal().String(),
+					strconv.FormatInt(int64(from.Quantity), 10),
 				}
 				
 				err = writer.Write(record)
@@ -416,7 +450,7 @@ func writeShortagesCSV(shortages []mrp.Shortage, filename string) error {
 		record := []string{
 			string(shortage.PartNumber),
 			shortage.Location,
-			shortage.ShortQty.Decimal().String(),
+			strconv.FormatInt(int64(shortage.ShortQty), 10),
 			shortage.NeedDate.Format("2006-01-02"),
 			shortage.DemandTrace,
 			shortage.TargetSerial,

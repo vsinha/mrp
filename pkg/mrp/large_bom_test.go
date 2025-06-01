@@ -7,8 +7,6 @@ import (
 	"runtime"
 	"testing"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 // LargeBOMConfig defines parameters for generating realistic large BOMs
@@ -344,24 +342,24 @@ func (s *LargeBOMSynthesizer) generateLotSizeRule(partType PartType) LotSizeRule
 func (s *LargeBOMSynthesizer) generateMinOrderQty(partType PartType) Quantity {
 	switch partType {
 	case Assembly, Subassembly:
-		return Quantity(decimal.NewFromInt(1))
+		return Quantity(1)
 	case Component:
-		return Quantity(decimal.NewFromInt(int64(s.rng.Intn(10) + 1)))
+		return Quantity(s.rng.Intn(10) + 1)
 	case RawMaterial:
-		return Quantity(decimal.NewFromInt(int64(s.rng.Intn(100) + 1)))
+		return Quantity(s.rng.Intn(100) + 1)
 	default:
-		return Quantity(decimal.NewFromInt(1))
+		return Quantity(1)
 	}
 }
 
 func (s *LargeBOMSynthesizer) generateSafetyStock(criticality CriticalityLevel) Quantity {
 	switch criticality {
 	case Critical:
-		return Quantity(decimal.NewFromInt(int64(s.rng.Intn(10) + 5)))
+		return Quantity(s.rng.Intn(10) + 5)
 	case Important:
-		return Quantity(decimal.NewFromInt(int64(s.rng.Intn(5) + 1)))
+		return Quantity(s.rng.Intn(5) + 1)
 	default:
-		return Quantity(decimal.Zero)
+		return Quantity(0)
 	}
 }
 
@@ -435,15 +433,15 @@ func (s *LargeBOMSynthesizer) generateQtyPer(parentType, childType PartType) Qua
 	case childType == RawMaterial:
 		// Raw materials often used in bulk
 		qty := s.rng.Intn(50) + 1
-		return Quantity(decimal.NewFromInt(int64(qty)))
+		return Quantity(qty)
 	case childType == Component:
 		// Components typically used in small quantities
 		qty := s.rng.Intn(10) + 1
-		return Quantity(decimal.NewFromInt(int64(qty)))
+		return Quantity(qty)
 	default:
 		// Assemblies and subassemblies typically 1-3 per parent
 		qty := s.rng.Intn(3) + 1
-		return Quantity(decimal.NewFromInt(int64(qty)))
+		return Quantity(qty)
 	}
 }
 
@@ -467,13 +465,13 @@ func (s *LargeBOMSynthesizer) generateLotQuantity(partType PartType) Quantity {
 	switch partType {
 	case RawMaterial:
 		qty := s.rng.Intn(1000) + 100
-		return Quantity(decimal.NewFromInt(int64(qty)))
+		return Quantity(qty)
 	case Component:
 		qty := s.rng.Intn(100) + 10
-		return Quantity(decimal.NewFromInt(int64(qty)))
+		return Quantity(qty)
 	default:
 		qty := s.rng.Intn(10) + 1
-		return Quantity(decimal.NewFromInt(int64(qty)))
+		return Quantity(qty)
 	}
 }
 
@@ -500,7 +498,7 @@ func BenchmarkMRPEngine_30KParts_10Levels(b *testing.B) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "L0_ASM_000000", // First top-level assembly
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     time.Now().Add(180 * 24 * time.Hour),
 			DemandSource: "LARGE_SCALE_BENCHMARK",
 			Location:     "KENNEDY",
@@ -548,7 +546,7 @@ func BenchmarkMRPEngine_50KParts_12Levels(b *testing.B) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "L0_ASM_000000",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     time.Now().Add(200 * 24 * time.Hour),
 			DemandSource: "EXTREME_SCALE_BENCHMARK",
 			Location:     "KENNEDY",
@@ -614,7 +612,7 @@ func TestLargeBOMSynthesis(t *testing.T) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "L0_ASM_000000",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     time.Now().Add(60 * 24 * time.Hour),
 			DemandSource: "TEST_SYNTHESIS",
 			Location:     "KENNEDY",
@@ -656,7 +654,7 @@ func BenchmarkOptimizedMRPEngine_30KParts(b *testing.B) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "L0_ASM_000000",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     time.Now().Add(180 * 24 * time.Hour),
 			DemandSource: "OPTIMIZED_BENCHMARK",
 			Location:     "KENNEDY",
@@ -703,7 +701,7 @@ func BenchmarkMemoryUsage_30KParts(b *testing.B) {
 		demands := []DemandRequirement{
 			{
 				PartNumber:   "L0_ASM_000000",
-				Quantity:     Quantity(decimal.NewFromInt(1)),
+				Quantity:     Quantity(1),
 				NeedDate:     time.Now().Add(180 * 24 * time.Hour),
 				DemandSource: "MEMORY_BENCHMARK_STD",
 				Location:     "KENNEDY",
@@ -748,7 +746,7 @@ func BenchmarkMemoryUsage_30KParts(b *testing.B) {
 		demands := []DemandRequirement{
 			{
 				PartNumber:   "L0_ASM_000000",
-				Quantity:     Quantity(decimal.NewFromInt(1)),
+				Quantity:     Quantity(1),
 				NeedDate:     time.Now().Add(180 * 24 * time.Hour),
 				DemandSource: "MEMORY_BENCHMARK_OPT",
 				Location:     "KENNEDY",

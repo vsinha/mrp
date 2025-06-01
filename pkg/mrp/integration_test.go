@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 func TestMRPIntegration_AerospaceScenario(t *testing.T) {
@@ -24,7 +22,7 @@ func TestMRPIntegration_AerospaceScenario(t *testing.T) {
 		// New vehicle build - uses newer BOM effectivity
 		{
 			PartNumber:   "SATURN_V",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     needDate,
 			DemandSource: "APOLLO_11_MISSION",
 			Location:     "KENNEDY",
@@ -33,7 +31,7 @@ func TestMRPIntegration_AerospaceScenario(t *testing.T) {
 		// Refurbishment of older vehicle - uses older BOM effectivity  
 		{
 			PartNumber:   "F1_ENGINE",
-			Quantity:     Quantity(decimal.NewFromInt(5)),
+			Quantity:     Quantity(5),
 			NeedDate:     time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC), 
 			DemandSource: "REFURB_AS502",
 			Location:     "STENNIS",
@@ -42,7 +40,7 @@ func TestMRPIntegration_AerospaceScenario(t *testing.T) {
 		// Spare parts for test campaign
 		{
 			PartNumber:   "F1_TURBOPUMP_V2",
-			Quantity:     Quantity(decimal.NewFromInt(4)),
+			Quantity:     Quantity(4),
 			NeedDate:     time.Date(2025, 6, 30, 0, 0, 0, 0, time.UTC),
 			DemandSource: "TEST_CAMPAIGN_APOLLO",
 			Location:     "STENNIS", 
@@ -75,12 +73,12 @@ func TestMRPIntegration_AerospaceScenario(t *testing.T) {
 			t.Logf("  Found J2_ENGINE_V1 order for target serial %s", order.TargetSerial)
 		case "F1_TURBOPUMP_V1":
 			foundTurbopumpV1 = true
-			t.Logf("  Found TURBOPUMP_V1 order qty=%s for target serial %s", 
-				order.Quantity.Decimal(), order.TargetSerial)
+			t.Logf("  Found TURBOPUMP_V1 order qty=%d for target serial %s", 
+				order.Quantity, order.TargetSerial)
 		case "F1_TURBOPUMP_V2":
 			foundTurbopumpV2 = true
-			t.Logf("  Found TURBOPUMP_V2 order qty=%s for target serial %s", 
-				order.Quantity.Decimal(), order.TargetSerial)
+			t.Logf("  Found TURBOPUMP_V2 order qty=%d for target serial %s", 
+				order.Quantity, order.TargetSerial)
 		}
 	}
 	
@@ -100,8 +98,8 @@ func TestMRPIntegration_AerospaceScenario(t *testing.T) {
 	for _, alloc := range result.Allocations {
 		if alloc.PartNumber == "F1_ENGINE" {
 			engineAllocation = true
-			t.Logf("  Engine allocation: %s units allocated from inventory", 
-				alloc.AllocatedQty.Decimal())
+			t.Logf("  Engine allocation: %d units allocated from inventory", 
+				alloc.AllocatedQty)
 			break
 		}
 	}
@@ -125,10 +123,10 @@ func TestMRPIntegration_AerospaceScenario(t *testing.T) {
 	}
 	
 	// Verify realistic quantities
-	totalTurbopumpOrders := decimal.Zero
+	var totalTurbopumpOrders Quantity
 	for _, order := range result.PlannedOrders {
 		if order.PartNumber == "F1_TURBOPUMP_V1" || order.PartNumber == "F1_TURBOPUMP_V2" {
-			totalTurbopumpOrders = totalTurbopumpOrders.Add(order.Quantity.Decimal())
+			totalTurbopumpOrders += order.Quantity
 		}
 	}
 	
@@ -137,9 +135,9 @@ func TestMRPIntegration_AerospaceScenario(t *testing.T) {
 	// - 9 engines (SN020 refurb) * 2 pumps = 18 V1 pumps  
 	// - 4 spares (direct demand) = 4 V2 pumps
 	// Total expected: 40 turbopumps
-	expectedTurbopumps := decimal.NewFromInt(14)
-	if totalTurbopumpOrders.Cmp(expectedTurbopumps) != 0 {
-		t.Errorf("Expected %s total turbopump orders, got %s", 
+	expectedTurbopumps := Quantity(14)
+	if totalTurbopumpOrders != expectedTurbopumps {
+		t.Errorf("Expected %d total turbopump orders, got %d", 
 			expectedTurbopumps, totalTurbopumpOrders)
 	}
 }
@@ -169,8 +167,8 @@ func TestMRPIntegration_PerformanceWithLargeBOM(t *testing.T) {
 				Description:     fmt.Sprintf("Level %d Part %d", level, part),
 				LeadTimeDays:    (level + 1) * 10,
 				LotSizeRule:     LotForLot,
-				MinOrderQty:     Quantity(decimal.NewFromInt(1)),
-				SafetyStock:     Quantity(decimal.Zero),
+				MinOrderQty:     Quantity(1),
+				SafetyStock:     Quantity(0),
 				UnitOfMeasure:   "EA",
 			})
 		}
@@ -187,7 +185,7 @@ func TestMRPIntegration_PerformanceWithLargeBOM(t *testing.T) {
 				bomRepo.AddBOMLine(BOMLine{
 					ParentPN:     parentPart,
 					ChildPN:      childPartNum,
-					QtyPer:       Quantity(decimal.NewFromInt(int64(qtyPer))),
+					QtyPer:       Quantity(qtyPer),
 					FindNumber:   childPart + 1,
 					Effectivity:  SerialEffectivity{FromSerial: "SN001", ToSerial: ""},
 				})
@@ -201,7 +199,7 @@ func TestMRPIntegration_PerformanceWithLargeBOM(t *testing.T) {
 	demands := []DemandRequirement{
 		{
 			PartNumber:   "LEVEL_0_PART_0",
-			Quantity:     Quantity(decimal.NewFromInt(1)),
+			Quantity:     Quantity(1),
 			NeedDate:     time.Now().Add(100 * 24 * time.Hour),
 			DemandSource: "PERFORMANCE_TEST",
 			Location:     "FACTORY",
@@ -227,15 +225,15 @@ func TestMRPIntegration_PerformanceWithLargeBOM(t *testing.T) {
 	// Verify explosive growth was handled
 	// With 5 levels, 10 parts per level, qty 2 each:
 	// Level 4 (leaf) should have 2^4 = 16 units needed
-	expectedLeafQty := decimal.NewFromInt(16) // 2^4
+	expectedLeafQty := Quantity(16) // 2^4
 	
 	foundLeafOrder := false
 	for _, order := range result.PlannedOrders {
 		if order.PartNumber == "LEVEL_4_PART_0" {
 			foundLeafOrder = true
-			if order.Quantity.Decimal().Cmp(expectedLeafQty) != 0 {
-				t.Errorf("Expected leaf part quantity %s, got %s", 
-					expectedLeafQty, order.Quantity.Decimal())
+			if order.Quantity != expectedLeafQty {
+				t.Errorf("Expected leaf part quantity %d, got %d", 
+					expectedLeafQty, order.Quantity)
 			}
 			break
 		}
@@ -252,6 +250,3 @@ func TestMRPIntegration_PerformanceWithLargeBOM(t *testing.T) {
 }
 
 // Helper function to format test results
-func formatDecimal(d decimal.Decimal) string {
-	return d.String()
-}

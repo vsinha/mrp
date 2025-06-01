@@ -2,15 +2,13 @@ package mrp
 
 import (
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 // PartNumber represents a unique part identifier
 type PartNumber string
 
-// Quantity represents a decimal quantity value
-type Quantity decimal.Decimal
+// Quantity represents an integer quantity value for discrete manufacturing units
+type Quantity int64
 
 // Item represents a manufacturing item with its properties
 type Item struct {
