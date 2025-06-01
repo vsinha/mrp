@@ -8,13 +8,6 @@ import (
 	"github.com/vsinha/mrp/pkg/domain/repositories"
 )
 
-// AllocationContext holds allocation information for a part
-type AllocationContext struct {
-	AllocatedQty    entities.Quantity
-	RemainingDemand entities.Quantity
-	HasAllocation   bool
-}
-
 // BOMNodeContext provides context information during BOM traversal
 type BOMNodeContext struct {
 	PartNumber        entities.PartNumber
@@ -42,7 +35,7 @@ type BOMTraverser struct {
 	bomRepo           repositories.BOMRepository
 	itemRepo          repositories.ItemRepository
 	alternateSelector *AlternateSelector
-	allocationMap     map[string]*AllocationContext // key: partNumber|location
+	allocationMap     AllocationMap
 }
 
 // NewBOMTraverser creates a new BOM traverser
@@ -55,26 +48,33 @@ func NewBOMTraverser(
 		bomRepo:           bomRepo,
 		itemRepo:          itemRepo,
 		alternateSelector: alternateSelector,
-		allocationMap:     make(map[string]*AllocationContext),
+		allocationMap:     NewAllocationMap(),
 	}
 }
 
 // SetAllocationContext updates the allocation information for parts
 func (bt *BOMTraverser) SetAllocationContext(allocations []entities.AllocationResult) {
-	bt.allocationMap = make(map[string]*AllocationContext)
-	for _, alloc := range allocations {
-		key := fmt.Sprintf("%s|%s", alloc.PartNumber, alloc.Location)
-		bt.allocationMap[key] = &AllocationContext{
-			AllocatedQty:    alloc.AllocatedQty,
-			RemainingDemand: alloc.RemainingDemand,
-			HasAllocation:   alloc.AllocatedQty > 0,
-		}
+	bt.allocationMap = NewAllocationMapFromResults(allocations)
+}
+
+// SetAllocationMap directly sets the allocation map
+func (bt *BOMTraverser) SetAllocationMap(allocMap AllocationMap) {
+	bt.allocationMap = allocMap
+}
+
+// GetAllocationMap returns a copy of the current allocation map
+func (bt *BOMTraverser) GetAllocationMap() AllocationMap {
+	// Return a copy to prevent external modifications
+	copyMap := NewAllocationMap()
+	for key, context := range bt.allocationMap {
+		copyMap[key] = context
 	}
+	return copyMap
 }
 
 // ClearAllocationContext removes allocation information
 func (bt *BOMTraverser) ClearAllocationContext() {
-	bt.allocationMap = make(map[string]*AllocationContext)
+	bt.allocationMap.Clear()
 }
 
 // TraverseBOM performs BOM traversal with alternate selection using the visitor pattern
@@ -94,8 +94,7 @@ func (bt *BOMTraverser) TraverseBOM(
 	}
 
 	// Get allocation context for this part
-	key := fmt.Sprintf("%s|%s", partNumber, location)
-	allocationCtx := bt.allocationMap[key]
+	allocationCtx := bt.allocationMap.Get(partNumber, location)
 
 	// Create node context
 	nodeCtx := BOMNodeContext{

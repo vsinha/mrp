@@ -4,5 +4,3 @@
 
 
 instead of having "AlternateSelector" just pass the inventoryRepo and itemRepo throughout. Don't need those alternate_selector functions to be hanging off a struct for no reason.
-
-turn allocation context map[string] into its own type
