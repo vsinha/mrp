@@ -12,23 +12,18 @@ import (
 )
 
 // Helper to create test MRP service for benchmarks
-func newTestMRPServiceForBenchmark(
-	bomRepo *memory.BOMRepository,
-	itemRepo *memory.ItemRepository,
-	inventoryRepo *memory.InventoryRepository,
-	demandRepo *memory.DemandRepository,
-) *MRPService {
+func newTestMRPServiceForBenchmark() *MRPService {
 	config := EngineConfig{
 		EnableGCPacing:  false, // Disable GC tuning in tests for predictable performance
 		MaxCacheEntries: 1000,  // Smaller cache for tests
 	}
-	return NewMRPServiceWithConfig(bomRepo, itemRepo, inventoryRepo, demandRepo, config)
+	return NewMRPServiceWithConfig(config)
 }
 
 func BenchmarkMRPService_SingleLevel(b *testing.B) {
 	ctx := context.Background()
 	bomRepo, itemRepo, inventoryRepo, demandRepo := testhelpers.BuildSimpleTestData()
-	service := newTestMRPServiceForBenchmark(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPServiceForBenchmark()
 
 	demands := []*entities.DemandRequirement{
 		{
@@ -43,7 +38,7 @@ func BenchmarkMRPService_SingleLevel(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := service.ExplodeDemand(ctx, demands)
+		_, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 		if err != nil {
 			b.Fatalf("ExplodeDemand failed: %v", err)
 		}
@@ -53,7 +48,7 @@ func BenchmarkMRPService_SingleLevel(b *testing.B) {
 func BenchmarkMRPService_DeepBOM(b *testing.B) {
 	ctx := context.Background()
 	bomRepo, itemRepo, inventoryRepo, demandRepo := setupDeepBOM(10) // 10 levels deep
-	service := newTestMRPServiceForBenchmark(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPServiceForBenchmark()
 
 	demands := []*entities.DemandRequirement{
 		{
@@ -68,7 +63,7 @@ func BenchmarkMRPService_DeepBOM(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := service.ExplodeDemand(ctx, demands)
+		_, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 		if err != nil {
 			b.Fatalf("ExplodeDemand failed: %v", err)
 		}
@@ -78,7 +73,7 @@ func BenchmarkMRPService_DeepBOM(b *testing.B) {
 func BenchmarkMRPService_WideBOM(b *testing.B) {
 	ctx := context.Background()
 	bomRepo, itemRepo, inventoryRepo, demandRepo := setupWideBOM(50) // 50 children per parent
-	service := newTestMRPServiceForBenchmark(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPServiceForBenchmark()
 
 	demands := []*entities.DemandRequirement{
 		{
@@ -93,7 +88,7 @@ func BenchmarkMRPService_WideBOM(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := service.ExplodeDemand(ctx, demands)
+		_, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 		if err != nil {
 			b.Fatalf("ExplodeDemand failed: %v", err)
 		}
@@ -103,7 +98,7 @@ func BenchmarkMRPService_WideBOM(b *testing.B) {
 func BenchmarkMRPService_SerialEffectivity(b *testing.B) {
 	ctx := context.Background()
 	bomRepo, itemRepo, inventoryRepo, demandRepo := testhelpers.BuildAerospaceTestData()
-	service := newTestMRPServiceForBenchmark(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPServiceForBenchmark()
 
 	demands := []*entities.DemandRequirement{
 		{
@@ -118,7 +113,7 @@ func BenchmarkMRPService_SerialEffectivity(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := service.ExplodeDemand(ctx, demands)
+		_, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 		if err != nil {
 			b.Fatalf("ExplodeDemand failed: %v", err)
 		}
@@ -128,7 +123,7 @@ func BenchmarkMRPService_SerialEffectivity(b *testing.B) {
 func BenchmarkMRPService_LargeScale(b *testing.B) {
 	ctx := context.Background()
 	bomRepo, itemRepo, inventoryRepo, demandRepo := setupLargeScaleBOM(1000) // 1000 parts
-	service := newTestMRPServiceForBenchmark(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPServiceForBenchmark()
 
 	demands := []*entities.DemandRequirement{
 		{
@@ -143,7 +138,7 @@ func BenchmarkMRPService_LargeScale(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := service.ExplodeDemand(ctx, demands)
+		_, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 		if err != nil {
 			b.Fatalf("ExplodeDemand failed: %v", err)
 		}

@@ -7,22 +7,35 @@ import (
 
 	"github.com/vsinha/mrp/pkg/application/dto"
 	"github.com/vsinha/mrp/pkg/domain/entities"
+	"github.com/vsinha/mrp/pkg/domain/repositories"
 )
 
 // PlanningOrchestrator coordinates between MRP and Critical Path services
 type PlanningOrchestrator struct {
 	mrpService          *MRPService
 	criticalPathService *CriticalPathService
+	bomRepo             repositories.BOMRepository
+	itemRepo            repositories.ItemRepository
+	inventoryRepo       repositories.InventoryRepository
+	demandRepo          repositories.DemandRepository
 }
 
 // NewPlanningOrchestrator creates a new planning orchestrator
 func NewPlanningOrchestrator(
 	mrpService *MRPService,
 	criticalPathService *CriticalPathService,
+	bomRepo repositories.BOMRepository,
+	itemRepo repositories.ItemRepository,
+	inventoryRepo repositories.InventoryRepository,
+	demandRepo repositories.DemandRepository,
 ) *PlanningOrchestrator {
 	return &PlanningOrchestrator{
 		mrpService:          mrpService,
 		criticalPathService: criticalPathService,
+		bomRepo:             bomRepo,
+		itemRepo:            itemRepo,
+		inventoryRepo:       inventoryRepo,
+		demandRepo:          demandRepo,
 	}
 }
 
@@ -47,7 +60,14 @@ func (po *PlanningOrchestrator) RunCompletePlanning(
 	}
 
 	// Step 1: Run MRP explosion to get allocation results
-	mrpResult, err := po.mrpService.ExplodeDemand(ctx, demands)
+	mrpResult, err := po.mrpService.ExplodeDemand(
+		ctx,
+		demands,
+		po.bomRepo,
+		po.itemRepo,
+		po.inventoryRepo,
+		po.demandRepo,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run MRP explosion: %w", err)
 	}
@@ -87,7 +107,14 @@ func (po *PlanningOrchestrator) AnalyzeCriticalPathForDemand(
 	topPaths int,
 ) (*entities.CriticalPathAnalysis, error) {
 	// First run MRP to get allocation results
-	mrpResult, err := po.mrpService.ExplodeDemand(ctx, []*entities.DemandRequirement{demand})
+	mrpResult, err := po.mrpService.ExplodeDemand(
+		ctx,
+		[]*entities.DemandRequirement{demand},
+		po.bomRepo,
+		po.itemRepo,
+		po.inventoryRepo,
+		po.demandRepo,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run MRP for critical path analysis: %w", err)
 	}

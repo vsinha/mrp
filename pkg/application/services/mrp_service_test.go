@@ -6,22 +6,16 @@ import (
 	"time"
 
 	"github.com/vsinha/mrp/pkg/domain/entities"
-	"github.com/vsinha/mrp/pkg/infrastructure/repositories/memory"
 	testhelpers "github.com/vsinha/mrp/pkg/infrastructure/testing"
 )
 
 // Helper to create test MRP service
-func newTestMRPService(
-	bomRepo *memory.BOMRepository,
-	itemRepo *memory.ItemRepository,
-	inventoryRepo *memory.InventoryRepository,
-	demandRepo *memory.DemandRepository,
-) *MRPService {
+func newTestMRPService() *MRPService {
 	config := EngineConfig{
 		EnableGCPacing:  false, // Disable GC tuning in tests for predictable performance
 		MaxCacheEntries: 1000,  // Smaller cache for tests
 	}
-	return NewMRPServiceWithConfig(bomRepo, itemRepo, inventoryRepo, demandRepo, config)
+	return NewMRPServiceWithConfig(config)
 }
 
 func TestMRPService_ExplodeDemand_SingleLevel(t *testing.T) {
@@ -31,7 +25,7 @@ func TestMRPService_ExplodeDemand_SingleLevel(t *testing.T) {
 	bomRepo, itemRepo, inventoryRepo, demandRepo := testhelpers.BuildSimpleTestData()
 
 	// Create service
-	service := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPService()
 
 	// Create demand
 	needDate := time.Now().Add(30 * 24 * time.Hour)
@@ -47,7 +41,7 @@ func TestMRPService_ExplodeDemand_SingleLevel(t *testing.T) {
 	}
 
 	// Execute MRP
-	result, err := service.ExplodeDemand(ctx, demands)
+	result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 	if err != nil {
 		t.Fatalf("ExplodeDemand failed: %v", err)
 	}
@@ -90,7 +84,7 @@ func TestMRPService_ExplodeDemand_SerialEffectivity(t *testing.T) {
 	// Use aerospace test data
 	bomRepo, itemRepo, inventoryRepo, demandRepo := testhelpers.BuildAerospaceTestData()
 
-	service := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPService()
 
 	needDate := time.Date(2025, 8, 15, 0, 0, 0, 0, time.UTC)
 
@@ -124,7 +118,7 @@ func TestMRPService_ExplodeDemand_SerialEffectivity(t *testing.T) {
 				},
 			}
 
-			result, err := service.ExplodeDemand(ctx, demands)
+			result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 			if err != nil {
 				t.Fatalf("ExplodeDemand failed: %v", err)
 			}
@@ -165,7 +159,7 @@ func TestMRPService_ExplodeDemand_InventoryAllocation(t *testing.T) {
 		t.Fatalf("Failed to save inventory: %v", err)
 	}
 
-	service := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPService()
 
 	// Create demand for 3 units (should partially allocate from inventory)
 	demands := []*entities.DemandRequirement{
@@ -179,7 +173,7 @@ func TestMRPService_ExplodeDemand_InventoryAllocation(t *testing.T) {
 		},
 	}
 
-	result, err := service.ExplodeDemand(ctx, demands)
+	result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 	if err != nil {
 		t.Fatalf("ExplodeDemand failed: %v", err)
 	}
@@ -272,7 +266,7 @@ func TestMRPService_ExplodeDemand_Memoization(t *testing.T) {
 		}
 	}
 
-	service := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPService()
 
 	// Create demand
 	demands := []*entities.DemandRequirement{
@@ -286,7 +280,7 @@ func TestMRPService_ExplodeDemand_Memoization(t *testing.T) {
 		},
 	}
 
-	result, err := service.ExplodeDemand(ctx, demands)
+	result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 	if err != nil {
 		t.Fatalf("ExplodeDemand failed: %v", err)
 	}
@@ -319,7 +313,7 @@ func TestMRPService_ExplodeDemand_MultipleTargetSerials(t *testing.T) {
 	// Use aerospace test data
 	bomRepo, itemRepo, inventoryRepo, demandRepo := testhelpers.BuildAerospaceTestData()
 
-	service := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPService()
 
 	needDate := time.Date(2025, 8, 15, 0, 0, 0, 0, time.UTC)
 
@@ -343,7 +337,7 @@ func TestMRPService_ExplodeDemand_MultipleTargetSerials(t *testing.T) {
 		},
 	}
 
-	result, err := service.ExplodeDemand(ctx, demands)
+	result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 	if err != nil {
 		t.Fatalf("ExplodeDemand failed: %v", err)
 	}

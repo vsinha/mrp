@@ -129,9 +129,16 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	}
 
 	// Create services
-	mrpService := services.NewMRPService(bomRepo, bomRepo, inventoryRepo, demandRepo)
+	mrpService := services.NewMRPService()
 	criticalPathService := services.NewCriticalPathService(bomRepo, bomRepo, inventoryRepo, nil)
-	orchestrator := services.NewPlanningOrchestrator(mrpService, criticalPathService)
+	orchestrator := services.NewPlanningOrchestrator(
+		mrpService,
+		criticalPathService,
+		bomRepo,
+		bomRepo,
+		inventoryRepo,
+		demandRepo,
+	)
 
 	if c.config.Verbose {
 		fmt.Println("⚡ Using optimized MRP service with clean architecture")
@@ -143,7 +150,14 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	}
 
 	startTime := time.Now()
-	result, err := mrpService.ExplodeDemand(ctx, demands)
+	result, err := mrpService.ExplodeDemand(
+		ctx,
+		demands,
+		bomRepo,
+		bomRepo,
+		inventoryRepo,
+		demandRepo,
+	)
 	explosionTime := time.Since(startTime)
 
 	if err != nil {

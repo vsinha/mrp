@@ -17,9 +17,9 @@ func TestMRPService_CriticalPathAnalysis_SimpleCase(t *testing.T) {
 	demandRepo := memory.NewDemandRepository()
 
 	// Create MRP service
-	mrpService := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	mrpService := newTestMRPService()
 	criticalPathService := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
-	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService)
+	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService, bomRepo, itemRepo, inventoryRepo, demandRepo)
 
 	// Analyze critical path for rocket engine
 	analysis, err := orchestrator.AnalyzeCriticalPathForPart(
@@ -91,9 +91,9 @@ func TestMRPService_CriticalPathAnalysis_WithInventory(t *testing.T) {
 		t.Fatalf("Failed to save inventory lot: %v", err)
 	}
 
-	mrpService := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	mrpService := newTestMRPService()
 	criticalPathService := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
-	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService)
+	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService, bomRepo, itemRepo, inventoryRepo, demandRepo)
 
 	// Analyze critical path
 	analysis, err := orchestrator.AnalyzeCriticalPathForPart(
@@ -274,9 +274,9 @@ func TestMRPService_CriticalPathAnalysis_MultiplePaths(t *testing.T) {
 		}
 	}
 
-	mrpService := newTestMRPService(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	mrpService := newTestMRPService()
 	criticalPathService := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
-	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService)
+	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService, bomRepo, itemRepo, inventoryRepo, demandRepo)
 
 	// Analyze critical path asking for top 5 paths
 	analysis, err := orchestrator.AnalyzeCriticalPathForPart(

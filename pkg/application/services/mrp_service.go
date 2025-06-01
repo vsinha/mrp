@@ -10,7 +10,6 @@ import (
 	"github.com/vsinha/mrp/pkg/application/dto"
 	"github.com/vsinha/mrp/pkg/domain/entities"
 	"github.com/vsinha/mrp/pkg/domain/repositories"
-	"github.com/vsinha/mrp/pkg/domain/services"
 )
 
 // EngineConfig holds configuration for MRP engine optimization
@@ -23,50 +22,24 @@ type EngineConfig struct {
 
 // MRPService implements the MRP planning logic using clean architecture
 type MRPService struct {
-	bomRepo       repositories.BOMRepository
-	itemRepo      repositories.ItemRepository
-	inventoryRepo repositories.InventoryRepository
-	demandRepo    repositories.DemandRepository
-	serialComp    *services.SerialComparator
-	bomTraverser  *BOMTraverser
-	config        EngineConfig
+	config EngineConfig
 
 	// Memoization cache for BOM explosions
 	explosionCache map[dto.ExplosionCacheKey]*dto.ExplosionResult
 	cacheMutex     sync.RWMutex
 }
 
-// NewMRPService creates a new MRP service with the provided repositories
-func NewMRPService(
-	bomRepo repositories.BOMRepository,
-	itemRepo repositories.ItemRepository,
-	inventoryRepo repositories.InventoryRepository,
-	demandRepo repositories.DemandRepository,
-) *MRPService {
-	return NewMRPServiceWithConfig(bomRepo, itemRepo, inventoryRepo, demandRepo, EngineConfig{
+// NewMRPService creates a new MRP service with default configuration
+func NewMRPService() *MRPService {
+	return NewMRPServiceWithConfig(EngineConfig{
 		EnableGCPacing:  true,
 		MaxCacheEntries: 10000,
 	})
 }
 
 // NewMRPServiceWithConfig creates a new MRP service with custom configuration
-func NewMRPServiceWithConfig(
-	bomRepo repositories.BOMRepository,
-	itemRepo repositories.ItemRepository,
-	inventoryRepo repositories.InventoryRepository,
-	demandRepo repositories.DemandRepository,
-	config EngineConfig,
-) *MRPService {
-	serialComp := services.NewSerialComparator()
-	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
-
+func NewMRPServiceWithConfig(config EngineConfig) *MRPService {
 	return &MRPService{
-		bomRepo:        bomRepo,
-		itemRepo:       itemRepo,
-		inventoryRepo:  inventoryRepo,
-		demandRepo:     demandRepo,
-		serialComp:     serialComp,
-		bomTraverser:   bomTraverser,
 		config:         config,
 		explosionCache: make(map[dto.ExplosionCacheKey]*dto.ExplosionResult),
 	}
@@ -76,6 +49,10 @@ func NewMRPServiceWithConfig(
 func (s *MRPService) ExplodeDemand(
 	ctx context.Context,
 	demands []*entities.DemandRequirement,
+	bomRepo repositories.BOMRepository,
+	itemRepo repositories.ItemRepository,
+	inventoryRepo repositories.InventoryRepository,
+	demandRepo repositories.DemandRepository,
 ) (*dto.MRPResult, error) {
 	// Set GC pacing for large operations
 	var oldGCPercent int
@@ -97,8 +74,18 @@ func (s *MRPService) ExplodeDemand(
 	var allGrossRequirements []*entities.GrossRequirement
 
 	for _, demand := range demands {
-		grossReqs, err := s.explodeRequirements(ctx, demand.PartNumber, demand.TargetSerial,
-			demand.NeedDate, demand.DemandSource, demand.Location, demand.Quantity)
+		grossReqs, err := s.explodeRequirements(
+			ctx,
+			demand.PartNumber,
+			demand.TargetSerial,
+			demand.NeedDate,
+			demand.DemandSource,
+			demand.Location,
+			demand.Quantity,
+			bomRepo,
+			itemRepo,
+			inventoryRepo,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to explode demand for %s: %w", demand.PartNumber, err)
 		}
@@ -106,7 +93,11 @@ func (s *MRPService) ExplodeDemand(
 	}
 
 	// Step 2: Allocate available inventory against gross requirements
-	allocations, netRequirements, err := s.allocateInventory(ctx, allGrossRequirements)
+	allocations, netRequirements, err := s.allocateInventory(
+		ctx,
+		allGrossRequirements,
+		inventoryRepo,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to allocate inventory: %w", err)
 	}
@@ -114,7 +105,7 @@ func (s *MRPService) ExplodeDemand(
 	result.Allocations = allocations
 
 	// Step 3: Generate planned orders for net requirements
-	plannedOrders, err := s.createPlannedOrders(netRequirements)
+	plannedOrders, err := s.createPlannedOrders(netRequirements, itemRepo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create planned orders: %w", err)
 	}
@@ -146,6 +137,9 @@ func (s *MRPService) explodeRequirements(
 	demandTrace string,
 	location string,
 	quantity entities.Quantity,
+	bomRepo repositories.BOMRepository,
+	itemRepo repositories.ItemRepository,
+	inventoryRepo repositories.InventoryRepository,
 ) ([]*entities.GrossRequirement, error) {
 
 	// Create cache key for memoization
@@ -180,8 +174,9 @@ func (s *MRPService) explodeRequirements(
 	}
 
 	// Use BOMTraverser with MRPVisitor to perform the explosion
+	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
 	visitor := NewMRPVisitor(demandTrace, needDate)
-	result, err := s.bomTraverser.TraverseBOM(ctx, pn, targetSerial, location, quantity, 0, visitor)
+	result, err := bomTraverser.TraverseBOM(ctx, pn, targetSerial, location, quantity, 0, visitor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to traverse BOM for %s: %w", pn, err)
 	}
@@ -189,7 +184,7 @@ func (s *MRPService) explodeRequirements(
 	requirements := result.([]*entities.GrossRequirement)
 
 	// Get item master data for caching
-	item, err := s.itemRepo.GetItem(pn)
+	item, err := itemRepo.GetItem(pn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get item %s: %w", pn, err)
 	}
@@ -225,6 +220,7 @@ func (s *MRPService) explodeRequirements(
 func (s *MRPService) allocateInventory(
 	ctx context.Context,
 	grossReqs []*entities.GrossRequirement,
+	inventoryRepo repositories.InventoryRepository,
 ) ([]entities.AllocationResult, []*entities.NetRequirement, error) {
 	var allocations []entities.AllocationResult
 	var netRequirements []*entities.NetRequirement
@@ -249,7 +245,7 @@ func (s *MRPService) allocateInventory(
 		}
 
 		// Try to allocate inventory
-		allocation, err := s.inventoryRepo.AllocateInventory(
+		allocation, err := inventoryRepo.AllocateInventory(
 			firstReq.PartNumber,
 			firstReq.Location,
 			totalQty,
@@ -300,12 +296,13 @@ func (s *MRPService) allocateInventory(
 // createPlannedOrders generates planned orders for net requirements
 func (s *MRPService) createPlannedOrders(
 	netReqs []*entities.NetRequirement,
+	itemRepo repositories.ItemRepository,
 ) ([]entities.PlannedOrder, error) {
 	var orders []entities.PlannedOrder
 
 	for _, netReq := range netReqs {
 		// Get item to determine lead time and order type
-		item, err := s.itemRepo.GetItem(netReq.PartNumber)
+		item, err := itemRepo.GetItem(netReq.PartNumber)
 		if err != nil {
 			// Create order with default values if item not found
 			startDate := netReq.NeedDate.Add(-7 * 24 * time.Hour) // Default 7 day lead time

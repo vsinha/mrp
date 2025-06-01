@@ -12,17 +12,12 @@ import (
 )
 
 // Helper to create test MRP service
-func newTestMRPServiceForIntegration(
-	bomRepo *memory.BOMRepository,
-	itemRepo *memory.ItemRepository,
-	inventoryRepo *memory.InventoryRepository,
-	demandRepo *memory.DemandRepository,
-) *MRPService {
+func newTestMRPServiceForIntegration() *MRPService {
 	config := EngineConfig{
 		EnableGCPacing:  false, // Disable GC tuning in tests for predictable performance
 		MaxCacheEntries: 1000,  // Smaller cache for tests
 	}
-	return NewMRPServiceWithConfig(bomRepo, itemRepo, inventoryRepo, demandRepo, config)
+	return NewMRPServiceWithConfig(config)
 }
 
 func TestMRPIntegration_AerospaceScenario(t *testing.T) {
@@ -32,7 +27,7 @@ func TestMRPIntegration_AerospaceScenario(t *testing.T) {
 	bomRepo, itemRepo, inventoryRepo, demandRepo := testhelpers.BuildAerospaceTestData()
 
 	// Create MRP service
-	service := newTestMRPServiceForIntegration(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPServiceForIntegration()
 
 	// Define complex multi-vehicle demand scenario
 	needDate := time.Date(2025, 8, 15, 0, 0, 0, 0, time.UTC)
@@ -67,7 +62,7 @@ func TestMRPIntegration_AerospaceScenario(t *testing.T) {
 	}
 
 	// Execute MRP
-	result, err := service.ExplodeDemand(ctx, demands)
+	result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 	if err != nil {
 		t.Fatalf("MRP explosion failed: %v", err)
 	}
@@ -206,7 +201,7 @@ func TestMRPIntegration_PerformanceWithLargeBOM(t *testing.T) {
 		}
 	}
 
-	service := newTestMRPServiceForIntegration(bomRepo, itemRepo, inventoryRepo, demandRepo)
+	service := newTestMRPServiceForIntegration()
 
 	// Create demand for top-level parts
 	demands := []*entities.DemandRequirement{
@@ -222,7 +217,7 @@ func TestMRPIntegration_PerformanceWithLargeBOM(t *testing.T) {
 
 	// Measure performance
 	start := time.Now()
-	result, err := service.ExplodeDemand(ctx, demands)
+	result, err := service.ExplodeDemand(ctx, demands, bomRepo, itemRepo, inventoryRepo, demandRepo)
 	duration := time.Since(start)
 
 	if err != nil {
