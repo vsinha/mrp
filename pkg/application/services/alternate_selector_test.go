@@ -7,10 +7,8 @@ import (
 	testinghelpers "github.com/vsinha/mrp/pkg/infrastructure/testing"
 )
 
-func TestAlternateSelector_SelectBestAlternate(t *testing.T) {
-	_, itemRepo, inventoryRepo, _ := testinghelpers.BuildAerospaceTestData()
-	
-	selector := NewAlternateSelector(inventoryRepo, itemRepo)
+func TestSelectBestAlternateByPriority(t *testing.T) {
+	_, _, _, _ = testinghelpers.BuildAerospaceTestData()
 
 	// Create test alternates with different priorities
 	effectivity, err := entities.NewSerialEffectivity("AS501", "AS505")
@@ -39,7 +37,7 @@ func TestAlternateSelector_SelectBestAlternate(t *testing.T) {
 	alternates := []*entities.BOMLine{alternate1, alternate2, primary}
 
 	// Test: Should select the primary (priority 0)
-	selected := selector.SelectBestAlternate(alternates)
+	selected := SelectBestAlternateByPriority(alternates)
 	if selected == nil {
 		t.Fatal("Expected to select an alternate, got nil")
 	}
@@ -53,22 +51,16 @@ func TestAlternateSelector_SelectBestAlternate(t *testing.T) {
 	}
 }
 
-func TestAlternateSelector_SelectBestAlternate_EmptyList(t *testing.T) {
-	_, itemRepo, inventoryRepo, _ := testinghelpers.BuildAerospaceTestData()
-	
-	selector := NewAlternateSelector(inventoryRepo, itemRepo)
-
+func TestSelectBestAlternateByPriority_EmptyList(t *testing.T) {
 	// Test: Empty list should return nil
-	selected := selector.SelectBestAlternate([]*entities.BOMLine{})
+	selected := SelectBestAlternateByPriority([]*entities.BOMLine{})
 	if selected != nil {
 		t.Error("Expected nil for empty alternates list")
 	}
 }
 
-func TestAlternateSelector_SelectBestAlternateWithAvailability(t *testing.T) {
-	_, itemRepo, inventoryRepo, _ := testinghelpers.BuildAerospaceTestData()
-	
-	selector := NewAlternateSelector(inventoryRepo, itemRepo)
+func TestSelectBestAlternateWithInventory(t *testing.T) {
+	_, _, inventoryRepo, _ := testinghelpers.BuildAerospaceTestData()
 
 	// Create test alternates
 	effectivity, err := entities.NewSerialEffectivity("AS501", "AS505")
@@ -85,7 +77,7 @@ func TestAlternateSelector_SelectBestAlternateWithAvailability(t *testing.T) {
 	alternates := []*entities.BOMLine{primary}
 
 	// Test: Should select based on priority since we have basic inventory setup
-	selected := selector.SelectBestAlternateWithAvailability(alternates, 1)
+	selected := SelectBestAlternateWithInventory(alternates, 1, inventoryRepo)
 	if selected == nil {
 		t.Fatal("Expected to select an alternate, got nil")
 	}

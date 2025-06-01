@@ -58,17 +58,16 @@ func NewMRPServiceWithConfig(
 	config EngineConfig,
 ) *MRPService {
 	serialComp := services.NewSerialComparator()
-	alternateSelector := NewAlternateSelector(inventoryRepo, itemRepo)
-	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, alternateSelector)
+	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
 
 	return &MRPService{
-		bomRepo:       bomRepo,
-		itemRepo:      itemRepo,
-		inventoryRepo: inventoryRepo,
-		demandRepo:    demandRepo,
-		serialComp:    serialComp,
-		bomTraverser:  bomTraverser,
-		config:        config,
+		bomRepo:        bomRepo,
+		itemRepo:       itemRepo,
+		inventoryRepo:  inventoryRepo,
+		demandRepo:     demandRepo,
+		serialComp:     serialComp,
+		bomTraverser:   bomTraverser,
+		config:         config,
 		explosionCache: make(map[dto.ExplosionCacheKey]*dto.ExplosionResult),
 	}
 }
@@ -407,4 +406,3 @@ func (s *MRPService) cleanCacheIfNeeded() {
 		delete(s.explosionCache, oldestKey)
 	}
 }
-

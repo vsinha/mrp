@@ -24,7 +24,7 @@ type BOMNodeVisitor interface {
 	// VisitNode is called for each node in the BOM structure
 	// Returns data to be passed to children and whether to continue traversal
 	VisitNode(ctx context.Context, nodeCtx BOMNodeContext) (interface{}, bool, error)
-	
+
 	// ProcessChildren is called after visiting all children
 	// Receives the node context, data from VisitNode, and results from children
 	ProcessChildren(ctx context.Context, nodeCtx BOMNodeContext, nodeData interface{}, childResults []interface{}) (interface{}, error)
@@ -32,23 +32,23 @@ type BOMNodeVisitor interface {
 
 // BOMTraverser provides common BOM traversal logic with alternate selection
 type BOMTraverser struct {
-	bomRepo           repositories.BOMRepository
-	itemRepo          repositories.ItemRepository
-	alternateSelector *AlternateSelector
-	allocationMap     AllocationMap
+	bomRepo       repositories.BOMRepository
+	itemRepo      repositories.ItemRepository
+	inventoryRepo repositories.InventoryRepository
+	allocationMap AllocationMap
 }
 
 // NewBOMTraverser creates a new BOM traverser
 func NewBOMTraverser(
 	bomRepo repositories.BOMRepository,
 	itemRepo repositories.ItemRepository,
-	alternateSelector *AlternateSelector,
+	inventoryRepo repositories.InventoryRepository,
 ) *BOMTraverser {
 	return &BOMTraverser{
-		bomRepo:           bomRepo,
-		itemRepo:          itemRepo,
-		alternateSelector: alternateSelector,
-		allocationMap:     NewAllocationMap(),
+		bomRepo:       bomRepo,
+		itemRepo:      itemRepo,
+		inventoryRepo: inventoryRepo,
+		allocationMap: NewAllocationMap(),
 	}
 }
 
@@ -138,7 +138,7 @@ func (bt *BOMTraverser) TraverseBOM(
 		}
 
 		// Select the best alternate from effective ones
-		selectedAlternate := bt.alternateSelector.SelectBestAlternate(effectiveAlternates)
+		selectedAlternate := SelectBestAlternateByPriority(effectiveAlternates)
 		if selectedAlternate == nil {
 			continue // No suitable alternate found
 		}

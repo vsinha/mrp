@@ -7,23 +7,10 @@ import (
 	"github.com/vsinha/mrp/pkg/domain/repositories"
 )
 
-// AlternateSelector provides logic for selecting the best alternate from a group
-type AlternateSelector struct {
-	inventoryRepo repositories.InventoryRepository
-	itemRepo      repositories.ItemRepository
-}
-
-// NewAlternateSelector creates a new alternate selector
-func NewAlternateSelector(inventoryRepo repositories.InventoryRepository, itemRepo repositories.ItemRepository) *AlternateSelector {
-	return &AlternateSelector{
-		inventoryRepo: inventoryRepo,
-		itemRepo:      itemRepo,
-	}
-}
-
-// SelectBestAlternate selects the best alternate from a group based on priority and availability
-// Returns nil if no suitable alternate is found
-func (s *AlternateSelector) SelectBestAlternate(alternates []*entities.BOMLine) *entities.BOMLine {
+// SelectBestAlternateByPriority selects the best alternate from a group based solely on priority
+// Returns nil if no alternates are provided
+// Priority rules: 0 = standard/primary, 1+ = alternates with lower number = higher priority
+func SelectBestAlternateByPriority(alternates []*entities.BOMLine) *entities.BOMLine {
 	if len(alternates) == 0 {
 		return nil
 	}
@@ -35,14 +22,13 @@ func (s *AlternateSelector) SelectBestAlternate(alternates []*entities.BOMLine) 
 		return sortedAlternates[i].Priority < sortedAlternates[j].Priority
 	})
 
-	// For now, simply return the highest priority (lowest Priority value) alternate
-	// Future enhancement: could check inventory availability and select based on that
+	// Return the highest priority (lowest Priority value) alternate
 	return sortedAlternates[0]
 }
 
-// SelectBestAlternateWithAvailability selects the best alternate considering inventory availability
-// This is an enhanced version that checks inventory before selecting
-func (s *AlternateSelector) SelectBestAlternateWithAvailability(alternates []*entities.BOMLine, requiredQty entities.Quantity) *entities.BOMLine {
+// SelectBestAlternateWithInventory selects the best alternate considering inventory availability
+// Falls back to priority-based selection if no alternate has sufficient inventory
+func SelectBestAlternateWithInventory(alternates []*entities.BOMLine, requiredQty entities.Quantity, inventoryRepo repositories.InventoryRepository) *entities.BOMLine {
 	if len(alternates) == 0 {
 		return nil
 	}
@@ -57,7 +43,7 @@ func (s *AlternateSelector) SelectBestAlternateWithAvailability(alternates []*en
 	// Try each alternate in priority order
 	for _, alternate := range sortedAlternates {
 		// Check if we have sufficient inventory for this alternate
-		availableQty, err := s.getAvailableQuantity(alternate.ChildPN)
+		availableQty, err := getAvailableQuantity(alternate.ChildPN, inventoryRepo)
 		if err != nil {
 			// If we can't determine availability, skip this alternate
 			continue
@@ -75,9 +61,9 @@ func (s *AlternateSelector) SelectBestAlternateWithAvailability(alternates []*en
 }
 
 // getAvailableQuantity calculates total available quantity for a part number
-func (s *AlternateSelector) getAvailableQuantity(partNumber entities.PartNumber) (entities.Quantity, error) {
+func getAvailableQuantity(partNumber entities.PartNumber, inventoryRepo repositories.InventoryRepository) (entities.Quantity, error) {
 	// Get all inventory lots for this part (we'll assume "" location means all locations)
-	lots, err := s.inventoryRepo.GetInventoryLots(partNumber, "")
+	lots, err := inventoryRepo.GetInventoryLots(partNumber, "")
 	if err != nil {
 		return 0, err
 	}

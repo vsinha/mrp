@@ -40,7 +40,7 @@ func (v *CriticalPathVisitor) VisitNode(ctx context.Context, nodeCtx BOMNodeCont
 		alloc := nodeCtx.AllocationContext
 		hasInventory = alloc.HasAllocation
 		inventoryQty = alloc.AllocatedQty
-		
+
 		// Calculate effective lead time based on allocation coverage
 		if alloc.AllocatedQty >= nodeCtx.Quantity {
 			// Full allocation coverage - zero lead time

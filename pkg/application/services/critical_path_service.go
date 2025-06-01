@@ -27,8 +27,7 @@ func NewCriticalPathService(
 	inventoryRepo repositories.InventoryRepository,
 	serialComp *services.SerialComparator,
 ) *CriticalPathService {
-	alternateSelector := NewAlternateSelector(inventoryRepo, itemRepo)
-	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, alternateSelector)
+	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
 	return &CriticalPathService{
 		bomRepo:       bomRepo,
 		itemRepo:      itemRepo,
@@ -122,7 +121,6 @@ func (cps *CriticalPathService) AnalyzeCriticalPathWithAllocations(ctx context.C
 	}
 	topPaths := allPaths[:topN]
 
-
 	analysis := &entities.CriticalPathAnalysis{
 		TopLevelPart: partNumber,
 		TargetSerial: targetSerial,
@@ -148,4 +146,3 @@ func (cps *CriticalPathService) findAllPaths(ctx context.Context, partNumber ent
 	paths := result.([]entities.CriticalPath)
 	return paths, nil
 }
-

@@ -49,7 +49,7 @@ func (v *MRPVisitor) VisitNode(ctx context.Context, nodeCtx BOMNodeContext) (int
 // ProcessChildren combines this node's requirement with child requirements
 func (v *MRPVisitor) ProcessChildren(ctx context.Context, nodeCtx BOMNodeContext, nodeData interface{}, childResults []interface{}) (interface{}, error) {
 	mrpNodeData := nodeData.(*MRPNodeData)
-	
+
 	// Start with this node's requirement
 	var allRequirements []*entities.GrossRequirement
 	allRequirements = append(allRequirements, mrpNodeData.SelfRequirement)

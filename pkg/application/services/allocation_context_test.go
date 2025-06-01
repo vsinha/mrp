@@ -11,7 +11,7 @@ import (
 
 func TestPlanningOrchestrator_AnalyzeCriticalPathWithMRPResults(t *testing.T) {
 	bomRepo, itemRepo, inventoryRepo, _ := testinghelpers.BuildAerospaceTestData()
-	
+
 	mrpService := NewMRPService(bomRepo, itemRepo, inventoryRepo, nil)
 	criticalPathService := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
 	orchestrator := NewPlanningOrchestrator(mrpService, criticalPathService)
@@ -46,7 +46,7 @@ func TestPlanningOrchestrator_AnalyzeCriticalPathWithMRPResults(t *testing.T) {
 		for _, node := range path.PathDetails {
 			if node.HasInventory && node.InventoryQty > 0 {
 				foundAllocatedPart = true
-				t.Logf("  Part %s has allocation: %d units (required: %d)", 
+				t.Logf("  Part %s has allocation: %d units (required: %d)",
 					node.PartNumber, node.InventoryQty, node.RequiredQty)
 			}
 		}
@@ -59,9 +59,8 @@ func TestPlanningOrchestrator_AnalyzeCriticalPathWithMRPResults(t *testing.T) {
 
 func TestBOMTraverser_AllocationContext(t *testing.T) {
 	bomRepo, itemRepo, inventoryRepo, _ := testinghelpers.BuildAerospaceTestData()
-	
-	alternateSelector := NewAlternateSelector(inventoryRepo, itemRepo)
-	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, alternateSelector)
+
+	bomTraverser := NewBOMTraverser(bomRepo, itemRepo, inventoryRepo)
 
 	// Create some allocation results
 	allocations := []entities.AllocationResult{
@@ -72,7 +71,7 @@ func TestBOMTraverser_AllocationContext(t *testing.T) {
 			RemainingDemand: 3,
 		},
 		{
-			PartNumber:      "F1_TURBOPUMP_V1", 
+			PartNumber:      "F1_TURBOPUMP_V1",
 			Location:        "KSC",
 			AllocatedQty:    1,
 			RemainingDemand: 0,
@@ -110,7 +109,7 @@ func TestBOMTraverser_AllocationContext(t *testing.T) {
 		for _, node := range path.PathDetails {
 			if node.PartNumber == "F1_ENGINE" && node.HasInventory && node.InventoryQty == 2 {
 				foundAllocationInfo = true
-				t.Logf("Allocation context correctly applied to %s: allocated=%d, required=%d", 
+				t.Logf("Allocation context correctly applied to %s: allocated=%d, required=%d",
 					node.PartNumber, node.InventoryQty, node.RequiredQty)
 			}
 		}
@@ -222,7 +221,7 @@ func TestAllocationMap(t *testing.T) {
 		RemainingDemand: 2,
 		HasAllocation:   true,
 	})
-	
+
 	str := allocMap.String()
 	if str == "" {
 		t.Error("Expected non-empty string representation")
@@ -275,22 +274,22 @@ func TestAllocationContext_RealWorldUsage(t *testing.T) {
 
 	// Check specific parts for critical path analysis
 	criticalParts := []entities.PartNumber{"AIRCRAFT_FRAME", "ENGINE_LEFT", "ENGINE_RIGHT"}
-	
+
 	t.Logf("  Critical Parts Analysis:")
 	for _, part := range criticalParts {
 		for _, result := range mrpResults {
 			if result.PartNumber == part {
 				context := allocMap.Get(part, result.Location)
 				if context != nil {
-					partCoverage := float64(context.AllocatedQty) / 
-						float64(context.AllocatedQty + context.RemainingDemand) * 100
+					partCoverage := float64(context.AllocatedQty) /
+						float64(context.AllocatedQty+context.RemainingDemand) * 100
 					status := "⚠️  SHORTAGE"
 					if context.HasAllocation && partCoverage >= 100 {
 						status = "✅ COVERED"
 					} else if context.HasAllocation {
 						status = "🔶 PARTIAL"
 					}
-					
+
 					t.Logf("    %s: %s (%.1f%% coverage)", part, status, partCoverage)
 				}
 			}

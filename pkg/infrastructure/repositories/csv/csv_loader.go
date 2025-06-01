@@ -83,7 +83,7 @@ func (l *Loader) LoadBOM(filename string) ([]*entities.BOMLine, error) {
 	expectedHeaderOld := []string{"parent_pn", "child_pn", "qty_per", "find_number", "from_serial", "to_serial"}
 	expectedHeaderNew := []string{"parent_pn", "child_pn", "qty_per", "find_number", "from_serial", "to_serial", "priority"}
 	header := records[0]
-	
+
 	var hasPriority bool
 	if validateHeader(header, expectedHeaderNew) {
 		hasPriority = true
@@ -99,7 +99,7 @@ func (l *Loader) LoadBOM(filename string) ([]*entities.BOMLine, error) {
 		if hasPriority {
 			expectedCols = len(expectedHeaderNew)
 		}
-		
+
 		if len(record) != expectedCols {
 			return nil, fmt.Errorf("BOM CSV row %d: expected %d columns, got %d", i+2, expectedCols, len(record))
 		}
