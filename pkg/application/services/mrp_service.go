@@ -1,0 +1,455 @@
+package services
+
+import (
+	"context"
+	"fmt"
+	"runtime/debug"
+	"sync"
+	"time"
+
+	"github.com/vsinha/mrp/pkg/application/dto"
+	"github.com/vsinha/mrp/pkg/domain/entities"
+	"github.com/vsinha/mrp/pkg/domain/repositories"
+	"github.com/vsinha/mrp/pkg/domain/services"
+)
+
+// EngineConfig holds configuration for MRP engine optimization
+type EngineConfig struct {
+	// EnableGCPacing enables GC tuning for large operations
+	EnableGCPacing bool
+	// MaxCacheEntries limits the explosion cache size (0 = unlimited)
+	MaxCacheEntries int
+}
+
+// MRPService implements the MRP planning logic using clean architecture
+type MRPService struct {
+	bomRepo         repositories.BOMRepository
+	itemRepo        repositories.ItemRepository
+	inventoryRepo   repositories.InventoryRepository
+	demandRepo      repositories.DemandRepository
+	serialComp      *services.SerialComparator
+	criticalPathSvc *CriticalPathService
+	config          EngineConfig
+
+	// Memoization cache for BOM explosions
+	explosionCache map[dto.ExplosionCacheKey]*dto.ExplosionResult
+	cacheMutex     sync.RWMutex
+}
+
+// NewMRPService creates a new MRP service with the provided repositories
+func NewMRPService(
+	bomRepo repositories.BOMRepository,
+	itemRepo repositories.ItemRepository,
+	inventoryRepo repositories.InventoryRepository,
+	demandRepo repositories.DemandRepository,
+) *MRPService {
+	return NewMRPServiceWithConfig(bomRepo, itemRepo, inventoryRepo, demandRepo, EngineConfig{
+		EnableGCPacing:  true,
+		MaxCacheEntries: 10000,
+	})
+}
+
+// NewMRPServiceWithConfig creates a new MRP service with custom configuration
+func NewMRPServiceWithConfig(
+	bomRepo repositories.BOMRepository,
+	itemRepo repositories.ItemRepository,
+	inventoryRepo repositories.InventoryRepository,
+	demandRepo repositories.DemandRepository,
+	config EngineConfig,
+) *MRPService {
+	serialComp := services.NewSerialComparator()
+	criticalPathSvc := NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, serialComp)
+
+	return &MRPService{
+		bomRepo:         bomRepo,
+		itemRepo:        itemRepo,
+		inventoryRepo:   inventoryRepo,
+		demandRepo:      demandRepo,
+		serialComp:      serialComp,
+		criticalPathSvc: criticalPathSvc,
+		config:          config,
+		explosionCache:  make(map[dto.ExplosionCacheKey]*dto.ExplosionResult),
+	}
+}
+
+// ExplodeDemand performs complete MRP explosion for the given demands
+func (s *MRPService) ExplodeDemand(ctx context.Context, demands []*entities.DemandRequirement) (*dto.MRPResult, error) {
+	// Set GC pacing for large operations
+	var oldGCPercent int
+	if s.config.EnableGCPacing && len(demands) > 100 {
+		oldGCPercent = int(debug.SetGCPercent(50)) // More aggressive GC for large operations
+		defer debug.SetGCPercent(oldGCPercent)
+	}
+
+	// Pre-allocate result slices with estimated capacity for better performance
+	estimatedOrders := len(demands) * 50 // Conservative estimate
+	result := &dto.MRPResult{
+		PlannedOrders:  make([]entities.PlannedOrder, 0, estimatedOrders),
+		Allocations:    make([]entities.AllocationResult, 0, len(demands)*10),
+		ShortageReport: make([]entities.Shortage, 0, estimatedOrders/2),
+		ExplosionCache: make(map[dto.ExplosionCacheKey]*dto.ExplosionResult),
+	}
+
+	// Step 1: Explode all demands to gross requirements
+	var allGrossRequirements []*entities.GrossRequirement
+
+	for _, demand := range demands {
+		grossReqs, err := s.explodeRequirements(ctx, demand.PartNumber, demand.TargetSerial,
+			demand.NeedDate, demand.DemandSource, demand.Location, demand.Quantity)
+		if err != nil {
+			return nil, fmt.Errorf("failed to explode demand for %s: %w", demand.PartNumber, err)
+		}
+		allGrossRequirements = append(allGrossRequirements, grossReqs...)
+	}
+
+	// Step 2: Allocate available inventory against gross requirements
+	allocations, netRequirements, err := s.allocateInventory(ctx, allGrossRequirements)
+	if err != nil {
+		return nil, fmt.Errorf("failed to allocate inventory: %w", err)
+	}
+
+	result.Allocations = allocations
+
+	// Step 3: Generate planned orders for net requirements
+	plannedOrders := s.createPlannedOrders(netRequirements)
+	result.PlannedOrders = plannedOrders
+
+	// Step 4: Identify shortages
+	shortages := s.identifyShortages(netRequirements, plannedOrders)
+	result.ShortageReport = shortages
+
+	// Step 5: Copy explosion cache to result
+	s.cacheMutex.RLock()
+	for key, value := range s.explosionCache {
+		result.ExplosionCache[key] = value
+	}
+	s.cacheMutex.RUnlock()
+
+	// Clean cache if it's getting too large
+	s.cleanCacheIfNeeded()
+
+	return result, nil
+}
+
+// explodeRequirements recursively explodes a part's BOM with memoization
+func (s *MRPService) explodeRequirements(ctx context.Context, pn entities.PartNumber, targetSerial string,
+	needDate time.Time, demandTrace string, location string, quantity entities.Quantity) ([]*entities.GrossRequirement, error) {
+
+	// Create cache key for memoization
+	cacheKey := dto.ExplosionCacheKey{
+		PartNumber:        pn,
+		SerialEffectivity: entities.SerialEffectivity{FromSerial: targetSerial, ToSerial: targetSerial},
+	}
+
+	// Check cache first
+	s.cacheMutex.RLock()
+	cached, exists := s.explosionCache[cacheKey]
+	s.cacheMutex.RUnlock()
+
+	if exists {
+		// Scale cached quantities by the current demand quantity
+		var scaledRequirements []*entities.GrossRequirement
+		for _, req := range cached.Requirements {
+			scaledReq := &entities.GrossRequirement{
+				PartNumber:   req.PartNumber,
+				Quantity:     req.Quantity * quantity,
+				NeedDate:     needDate.Add(-time.Duration(cached.LeadTimeDays) * 24 * time.Hour),
+				DemandTrace:  demandTrace + " -> " + req.DemandTrace,
+				Location:     location,
+				TargetSerial: req.TargetSerial,
+			}
+			scaledRequirements = append(scaledRequirements, scaledReq)
+		}
+		return scaledRequirements, nil
+	}
+
+	// Get item master data
+	item, err := s.itemRepo.GetItem(pn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get item %s: %w", pn, err)
+	}
+
+	// Get effective BOM for this part and target serial
+	bomLines, err := s.bomRepo.GetEffectiveLines(pn, targetSerial)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get BOM for %s: %w", pn, err)
+	}
+
+	// Filter BOM lines by serial effectivity (already done by GetEffectiveLines)
+	effectiveLines := s.serialComp.ResolveSerialEffectivity(targetSerial, bomLines)
+
+	var requirements []*entities.GrossRequirement
+
+	// Always create requirement for this part itself
+	req := &entities.GrossRequirement{
+		PartNumber:   pn,
+		Quantity:     quantity,
+		NeedDate:     needDate,
+		DemandTrace:  demandTrace,
+		Location:     location,
+		TargetSerial: targetSerial,
+	}
+	requirements = append(requirements, req)
+
+	// If this part has BOM lines, recursively explode child requirements
+	if len(effectiveLines) > 0 {
+		for _, line := range effectiveLines {
+			childQty := line.QtyPer * quantity
+			childNeedDate := needDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour)
+			childTrace := demandTrace + " -> " + string(line.ChildPN)
+
+			childRequirements, err := s.explodeRequirements(ctx, line.ChildPN, targetSerial,
+				childNeedDate, childTrace, location, childQty)
+			if err != nil {
+				return nil, fmt.Errorf("failed to explode child %s: %w", line.ChildPN, err)
+			}
+
+			requirements = append(requirements, childRequirements...)
+		}
+	}
+
+	// Cache the base requirements (without scaling)
+	baseRequirements := make([]entities.GrossRequirement, len(requirements))
+	for i, req := range requirements {
+		baseRequirements[i] = entities.GrossRequirement{
+			PartNumber:   req.PartNumber,
+			Quantity:     req.Quantity / quantity, // Scale back to unit quantity
+			NeedDate:     req.NeedDate,
+			DemandTrace:  string(req.PartNumber), // Generic trace for caching
+			Location:     req.Location,
+			TargetSerial: req.TargetSerial,
+		}
+	}
+
+	explosionResult := &dto.ExplosionResult{
+		Requirements: baseRequirements,
+		LeadTimeDays: item.LeadTimeDays,
+		ComputedAt:   time.Now(),
+	}
+
+	// Store in cache
+	s.cacheMutex.Lock()
+	s.explosionCache[cacheKey] = explosionResult
+	s.cacheMutex.Unlock()
+
+	return requirements, nil
+}
+
+// allocateInventory allocates available inventory against gross requirements
+func (s *MRPService) allocateInventory(ctx context.Context, grossReqs []*entities.GrossRequirement) ([]entities.AllocationResult, []*entities.NetRequirement, error) {
+	var allocations []entities.AllocationResult
+	var netRequirements []*entities.NetRequirement
+
+	// Group requirements by part number and location
+	reqGroups := make(map[string][]*entities.GrossRequirement)
+	for _, req := range grossReqs {
+		key := fmt.Sprintf("%s|%s", req.PartNumber, req.Location)
+		reqGroups[key] = append(reqGroups[key], req)
+	}
+
+	// Process each group
+	for _, reqs := range reqGroups {
+		if len(reqs) == 0 {
+			continue
+		}
+
+		firstReq := reqs[0]
+		totalQty := entities.Quantity(0)
+		for _, req := range reqs {
+			totalQty += req.Quantity
+		}
+
+		// Try to allocate inventory
+		allocation, err := s.inventoryRepo.AllocateInventory(firstReq.PartNumber, firstReq.Location, totalQty)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to allocate inventory for %s: %w", firstReq.PartNumber, err)
+		}
+
+		allocations = append(allocations, *allocation)
+
+		// Create net requirements for unallocated quantities
+		if allocation.RemainingDemand > 0 {
+			// Distribute remaining demand across original requirements
+			remainingQty := allocation.RemainingDemand
+			for _, req := range reqs {
+				if remainingQty <= 0 {
+					break
+				}
+
+				netQty := req.Quantity
+				if netQty > remainingQty {
+					netQty = remainingQty
+				}
+
+				if netQty > 0 {
+					netReq := &entities.NetRequirement{
+						PartNumber:   req.PartNumber,
+						Quantity:     netQty,
+						NeedDate:     req.NeedDate,
+						DemandTrace:  req.DemandTrace,
+						Location:     req.Location,
+						TargetSerial: req.TargetSerial,
+					}
+					netRequirements = append(netRequirements, netReq)
+					remainingQty -= netQty
+				}
+			}
+		}
+	}
+
+	return allocations, netRequirements, nil
+}
+
+// createPlannedOrders generates planned orders for net requirements
+func (s *MRPService) createPlannedOrders(netReqs []*entities.NetRequirement) []entities.PlannedOrder {
+	var orders []entities.PlannedOrder
+
+	for _, netReq := range netReqs {
+		// Get item to determine lead time and order type
+		item, err := s.itemRepo.GetItem(netReq.PartNumber)
+		if err != nil {
+			// Create order with default values if item not found
+			order := entities.PlannedOrder{
+				PartNumber:   netReq.PartNumber,
+				Quantity:     netReq.Quantity,
+				StartDate:    netReq.NeedDate.Add(-7 * 24 * time.Hour), // Default 7 day lead time
+				DueDate:      netReq.NeedDate,
+				DemandTrace:  netReq.DemandTrace,
+				Location:     netReq.Location,
+				OrderType:    entities.Make, // Default to make
+				TargetSerial: netReq.TargetSerial,
+			}
+			orders = append(orders, order)
+			continue
+		}
+
+		// Apply lot sizing rules
+		orderQty := s.applyLotSizing(netReq.Quantity, item)
+
+		// Determine order type (simplified logic)
+		orderType := entities.Make
+		if item.LeadTimeDays > 30 {
+			orderType = entities.Buy // Long lead time items are typically purchased
+		}
+
+		order := entities.PlannedOrder{
+			PartNumber:   netReq.PartNumber,
+			Quantity:     orderQty,
+			StartDate:    netReq.NeedDate.Add(-time.Duration(item.LeadTimeDays) * 24 * time.Hour),
+			DueDate:      netReq.NeedDate,
+			DemandTrace:  netReq.DemandTrace,
+			Location:     netReq.Location,
+			OrderType:    orderType,
+			TargetSerial: netReq.TargetSerial,
+		}
+
+		orders = append(orders, order)
+	}
+
+	return orders
+}
+
+// applyLotSizing applies lot sizing rules to determine order quantity
+func (s *MRPService) applyLotSizing(netQty entities.Quantity, item *entities.Item) entities.Quantity {
+	switch item.LotSizeRule {
+	case entities.LotForLot:
+		return netQty
+	case entities.MinimumQty:
+		if netQty < item.MinOrderQty {
+			return item.MinOrderQty
+		}
+		return netQty
+	case entities.StandardPack:
+		// Round up to nearest standard pack size (using MinOrderQty as pack size)
+		if item.MinOrderQty > 0 {
+			packs := (netQty + item.MinOrderQty - 1) / item.MinOrderQty
+			return packs * item.MinOrderQty
+		}
+		return netQty
+	default:
+		return netQty
+	}
+}
+
+// identifyShortages identifies unfulfilled demand
+func (s *MRPService) identifyShortages(netReqs []*entities.NetRequirement, orders []entities.PlannedOrder) []entities.Shortage {
+	var shortages []entities.Shortage
+
+	// Create map of planned orders by part/location for quick lookup
+	orderMap := make(map[string]entities.Quantity)
+	for _, order := range orders {
+		key := fmt.Sprintf("%s|%s", order.PartNumber, order.Location)
+		orderMap[key] += order.Quantity
+	}
+
+	// Check each net requirement against planned orders
+	reqMap := make(map[string]entities.Quantity)
+	for _, netReq := range netReqs {
+		key := fmt.Sprintf("%s|%s", netReq.PartNumber, netReq.Location)
+		reqMap[key] += netReq.Quantity
+	}
+
+	for key, totalReq := range reqMap {
+		plannedQty := orderMap[key]
+		if plannedQty < totalReq {
+			// Find a representative net requirement for shortage details
+			var shortageReq *entities.NetRequirement
+			for _, netReq := range netReqs {
+				reqKey := fmt.Sprintf("%s|%s", netReq.PartNumber, netReq.Location)
+				if reqKey == key {
+					shortageReq = netReq
+					break
+				}
+			}
+
+			if shortageReq != nil {
+				shortage := entities.Shortage{
+					PartNumber:   shortageReq.PartNumber,
+					Location:     shortageReq.Location,
+					ShortQty:     totalReq - plannedQty,
+					NeedDate:     shortageReq.NeedDate,
+					DemandTrace:  shortageReq.DemandTrace,
+					TargetSerial: shortageReq.TargetSerial,
+				}
+				shortages = append(shortages, shortage)
+			}
+		}
+	}
+
+	return shortages
+}
+
+// cleanCacheIfNeeded removes old cache entries if cache size exceeds limit
+func (s *MRPService) cleanCacheIfNeeded() {
+	if s.config.MaxCacheEntries <= 0 {
+		return
+	}
+
+	s.cacheMutex.Lock()
+	defer s.cacheMutex.Unlock()
+
+	if len(s.explosionCache) > s.config.MaxCacheEntries {
+		// Simple LRU eviction - remove oldest entries
+		var oldestTime time.Time
+		var oldestKey dto.ExplosionCacheKey
+
+		for key, value := range s.explosionCache {
+			if oldestTime.IsZero() || value.ComputedAt.Before(oldestTime) {
+				oldestTime = value.ComputedAt
+				oldestKey = key
+			}
+		}
+
+		delete(s.explosionCache, oldestKey)
+	}
+}
+
+// AnalyzeCriticalPath performs critical path analysis for a given demand
+func (s *MRPService) AnalyzeCriticalPath(ctx context.Context, demand *entities.DemandRequirement, topN int) (*entities.CriticalPathAnalysis, error) {
+	return s.criticalPathSvc.AnalyzeCriticalPath(ctx, demand.PartNumber, demand.TargetSerial, demand.Location, topN)
+}
+
+// AnalyzeCriticalPathForPart performs critical path analysis for a specific part
+func (s *MRPService) AnalyzeCriticalPathForPart(ctx context.Context, partNumber entities.PartNumber, targetSerial string, location string, topN int) (*entities.CriticalPathAnalysis, error) {
+	return s.criticalPathSvc.AnalyzeCriticalPath(ctx, partNumber, targetSerial, location, topN)
+}

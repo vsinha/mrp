@@ -5,332 +5,49 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strconv"
-	"time"
 
-	"github.com/vsinha/mrp/pkg/mrp"
-	"github.com/vsinha/mrp/pkg/repository"
+	"github.com/vsinha/mrp/pkg/interfaces/cli/commands"
 )
 
 func main() {
 	// Command line flags
 	var (
-		scenarioDir = flag.String("scenario", "", "Path to scenario directory containing CSV files")
-		bomFile     = flag.String("bom", "", "Path to BOM CSV file")
-		itemsFile   = flag.String("items", "", "Path to items CSV file")
+		scenarioDir   = flag.String("scenario", "", "Path to scenario directory containing CSV files")
+		bomFile       = flag.String("bom", "", "Path to BOM CSV file")
+		itemsFile     = flag.String("items", "", "Path to items CSV file")
 		inventoryFile = flag.String("inventory", "", "Path to inventory CSV file")
-		demandsFile = flag.String("demands", "", "Path to demands CSV file")
-		outputDir   = flag.String("output", "", "Output directory for results (optional)")
-		format      = flag.String("format", "text", "Output format: text, json, csv")
-		verbose     = flag.Bool("verbose", false, "Enable verbose output")
-		criticalPath = flag.Bool("critical-path", false, "Perform critical path analysis")
-		topPaths    = flag.Int("top-paths", 3, "Number of top critical paths to analyze")
-		help        = flag.Bool("help", false, "Show help message")
+		demandsFile   = flag.String("demands", "", "Path to demands CSV file")
+		outputDir     = flag.String("output", "", "Output directory for results (optional)")
+		format        = flag.String("format", "text", "Output format: text, json, csv")
+		verbose       = flag.Bool("verbose", false, "Enable verbose output")
+		criticalPath  = flag.Bool("critical-path", false, "Perform critical path analysis")
+		topPaths      = flag.Int("top-paths", 3, "Number of top critical paths to analyze")
+		help          = flag.Bool("help", false, "Show help message")
 	)
-	
+
 	flag.Parse()
-	
-	if *help {
-		showHelp()
-		return
+
+	// Create command configuration
+	config := commands.Config{
+		ScenarioDir:   *scenarioDir,
+		BOMFile:       *bomFile,
+		ItemsFile:     *itemsFile,
+		InventoryFile: *inventoryFile,
+		DemandsFile:   *demandsFile,
+		OutputDir:     *outputDir,
+		Format:        *format,
+		Verbose:       *verbose,
+		CriticalPath:  *criticalPath,
+		TopPaths:      *topPaths,
+		Help:          *help,
 	}
-	
-	// Validate inputs
-	if *scenarioDir == "" && (*bomFile == "" || *itemsFile == "" || *inventoryFile == "" || *demandsFile == "") {
-		fmt.Fprintf(os.Stderr, "Error: Must specify either -scenario directory or individual CSV files\n\n")
-		showHelp()
-		os.Exit(1)
-	}
-	
-	// Determine input files
-	var bomPath, itemsPath, inventoryPath, demandsPath string
-	
-	if *scenarioDir != "" {
-		// Use scenario directory
-		bomPath = filepath.Join(*scenarioDir, "bom.csv")
-		itemsPath = filepath.Join(*scenarioDir, "items.csv")
-		inventoryPath = filepath.Join(*scenarioDir, "inventory.csv")
-		demandsPath = filepath.Join(*scenarioDir, "demands.csv")
-	} else {
-		// Use individual files
-		bomPath = *bomFile
-		itemsPath = *itemsFile
-		inventoryPath = *inventoryFile
-		demandsPath = *demandsFile
-	}
-	
-	// Validate files exist
-	files := map[string]string{
-		"BOM":       bomPath,
-		"Items":     itemsPath,
-		"Inventory": inventoryPath,
-		"Demands":   demandsPath,
-	}
-	
-	for name, path := range files {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "Error: %s file not found: %s\n", name, path)
-			os.Exit(1)
-		}
-	}
-	
-	if *verbose {
-		fmt.Printf("🚀 MRP Engine CLI\n")
-		fmt.Printf("Input files:\n")
-		fmt.Printf("  BOM: %s\n", bomPath)
-		fmt.Printf("  Items: %s\n", itemsPath)
-		fmt.Printf("  Inventory: %s\n", inventoryPath)
-		fmt.Printf("  Demands: %s\n", demandsPath)
-		fmt.Printf("Output format: %s\n", *format)
-		if *outputDir != "" {
-			fmt.Printf("Output directory: %s\n", *outputDir)
-		}
-		fmt.Println()
-	}
-	
+
+	// Create and execute command
+	cmd := commands.NewMRPCommand(config)
 	ctx := context.Background()
-	
-	// Load data from CSV files
-	if *verbose {
-		fmt.Println("📂 Loading data from CSV files...")
-	}
-	
-	csvRepo := repository.NewCSVRepository()
-	
-	// Load items
-	items, err := csvRepo.LoadItems(itemsPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading items: %v\n", err)
+
+	if err := cmd.Execute(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-	
-	// Load BOM
-	bomLines, err := csvRepo.LoadBOM(bomPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading BOM: %v\n", err)
-		os.Exit(1)
-	}
-	
-	// Load inventory
-	lotInventory, serialInventory, err := csvRepo.LoadInventory(inventoryPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading inventory: %v\n", err)
-		os.Exit(1)
-	}
-	
-	// Load demands
-	demands, err := csvRepo.LoadDemands(demandsPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading demands: %v\n", err)
-		os.Exit(1)
-	}
-	
-	if *verbose {
-		fmt.Printf("✅ Data loaded successfully:\n")
-		fmt.Printf("  Items: %d\n", len(items))
-		fmt.Printf("  BOM Lines: %d\n", len(bomLines))
-		fmt.Printf("  Lot Inventory: %d\n", len(lotInventory))
-		fmt.Printf("  Serial Inventory: %d\n", len(serialInventory))
-		fmt.Printf("  Demands: %d\n", len(demands))
-		fmt.Println()
-	}
-	
-	// Create repositories
-	bomRepo := mrp.NewBOMRepository(len(items), len(bomLines))
-	for _, item := range items {
-		bomRepo.AddItem(item)
-	}
-	for _, line := range bomLines {
-		bomRepo.AddBOMLine(line)
-	}
-	
-	inventoryRepo := mrp.NewInMemoryInventoryRepository()
-	for _, lot := range lotInventory {
-		inventoryRepo.AddLotInventory(lot)
-	}
-	for _, serial := range serialInventory {
-		inventoryRepo.AddSerializedInventory(serial)
-	}
-	
-	// Create MRP engine
-	engineConfig := mrp.EngineConfig{
-		EnableGCPacing:  true,
-		MaxCacheEntries: 10000,
-	}
-	engine := mrp.NewEngineWithConfig(bomRepo, inventoryRepo, engineConfig)
-	
-	if *verbose {
-		fmt.Println("⚡ Using optimized MRP engine")
-	}
-	
-	// Run MRP explosion
-	if *verbose {
-		fmt.Println("🔄 Running MRP explosion...")
-	}
-	
-	startTime := time.Now()
-	result, err := engine.ExplodeDemand(ctx, demands)
-	explosionTime := time.Since(startTime)
-	
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error running MRP explosion: %v\n", err)
-		os.Exit(1)
-	}
-	
-	if *verbose {
-		fmt.Printf("✅ MRP explosion completed in %v\n\n", explosionTime)
-	}
-	
-	// Perform critical path analysis if requested
-	var criticalPathAnalyses []*mrp.CriticalPathAnalysis
-	if *criticalPath && len(demands) > 0 {
-		if *verbose {
-			fmt.Println("🔍 Analyzing critical paths...")
-		}
-		
-		criticalPathStart := time.Now()
-		for i, demand := range demands {
-			analysis, err := engine.AnalyzeCriticalPath(ctx, demand, *topPaths)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: Critical path analysis failed for demand %d (%s): %v\n", 
-					i+1, demand.PartNumber, err)
-				continue
-			}
-			criticalPathAnalyses = append(criticalPathAnalyses, analysis)
-		}
-		criticalPathTime := time.Since(criticalPathStart)
-		
-		if *verbose {
-			fmt.Printf("✅ Critical path analysis completed in %v\n\n", criticalPathTime)
-		}
-		
-		// Display critical path results
-		if len(criticalPathAnalyses) > 0 && (*verbose || *format == "text") {
-			fmt.Println("📈 Critical Path Analysis Results:")
-			for i, analysis := range criticalPathAnalyses {
-				fmt.Printf("\nDemand %d (%s):\n", i+1, analysis.TopLevelPart)
-				fmt.Printf("  %s\n", analysis.GetCriticalPathSummary())
-				fmt.Printf("  Total paths analyzed: %d\n", analysis.TotalPaths)
-				fmt.Printf("  Inventory coverage: %.1f%%\n", analysis.GetInventoryCoverage())
-				
-				if *verbose && len(analysis.CriticalPath.PathDetails) > 0 {
-					fmt.Println("  Critical path details:")
-					for _, node := range analysis.CriticalPath.PathDetails {
-						inventoryStatus := "No inventory"
-						if node.HasInventory {
-							inventoryStatus = fmt.Sprintf("Has %s units", strconv.FormatInt(int64(node.InventoryQty), 10))
-						}
-						fmt.Printf("    Level %d: %s (%d → %d days) - %s\n", 
-							node.Level, node.PartNumber, node.LeadTimeDays, node.EffectiveLeadTime, inventoryStatus)
-					}
-				}
-				
-				if len(analysis.TopPaths) > 1 {
-					fmt.Printf("  Top %d paths:\n", len(analysis.TopPaths))
-					for j, path := range analysis.TopPaths {
-						fmt.Printf("    %d. %s\n", j+1, path.GetPathSummary())
-					}
-				}
-			}
-			fmt.Println()
-		}
-	}
-	
-	// Generate output
-	outputConfig := OutputConfig{
-		Format:              *format,
-		OutputDir:           *outputDir,
-		Verbose:             *verbose,
-		ExplosionTime:       explosionTime,
-		InputFiles:          files,
-		CriticalPathResults: criticalPathAnalyses,
-	}
-	
-	err = generateOutput(result, outputConfig)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating output: %v\n", err)
-		os.Exit(1)
-	}
-	
-	if *verbose {
-		fmt.Println("🏁 MRP analysis complete!")
-	}
-}
-
-func showHelp() {
-	fmt.Printf(`MRP Engine CLI - Material Requirements Planning for Aerospace Manufacturing
-
-USAGE:
-    mrp -scenario <directory>              # Use scenario directory with CSV files
-    mrp -bom <file> -items <file> ...      # Use individual CSV files
-
-OPTIONS:
-    -scenario <dir>     Path to scenario directory containing CSV files
-    -bom <file>         Path to BOM CSV file
-    -items <file>       Path to items CSV file  
-    -inventory <file>   Path to inventory CSV file
-    -demands <file>     Path to demands CSV file
-    -output <dir>       Output directory for results (optional)
-    -format <fmt>       Output format: text, json, csv (default: text)
-    -verbose            Enable verbose output
-    -critical-path      Perform critical path analysis on demands
-    -top-paths <n>      Number of top critical paths to analyze (default: 3)
-    -help               Show this help message
-
-SCENARIO DIRECTORY STRUCTURE:
-    scenario_name/
-    ├── bom.csv         # Bill of Materials
-    ├── items.csv       # Item master data
-    ├── inventory.csv   # Available inventory
-    └── demands.csv     # Demand requirements
-
-CSV FILE FORMATS:
-
-items.csv:
-    part_number,description,lead_time_days,lot_size_rule,min_order_qty,safety_stock,unit_of_measure
-    F1_ENGINE,F-1 Engine,120,LotForLot,1,2,EA
-
-bom.csv:
-    parent_pn,child_pn,qty_per,find_number,from_serial,to_serial
-    F1_ENGINE,F1_TURBOPUMP_V1,1,100,AS501,AS506
-    F1_ENGINE,F1_TURBOPUMP_V2,1,100,AS507,
-
-inventory.csv:
-    part_number,type,identifier,location,quantity,receipt_date,status
-    F1_ENGINE,serial,F1_001,MICHOUD,1,1968-09-15,Available
-    BOLT_M12,lot,BOLT_LOT_001,KENNEDY,1000,1968-04-10,Available
-
-demands.csv:
-    part_number,quantity,need_date,demand_source,location,target_serial
-    F1_ENGINE,5,1969-07-04,APOLLO_11,KENNEDY,AS506
-
-EXAMPLES:
-    # Run aerospace scenario
-    mrp -scenario examples/aerospace_basic -verbose
-
-    # Run with critical path analysis
-    mrp -scenario examples/aerospace_basic -critical-path -verbose
-
-    # Analyze top 5 critical paths
-    mrp -scenario examples/aerospace_basic -critical-path -top-paths 5
-
-    # Run with individual files
-    mrp -bom data/bom.csv -items data/items.csv -inventory data/inventory.csv -demands data/demands.csv
-
-    # Generate JSON output with critical path
-    mrp -scenario examples/large_vehicle -format json -output results/ -critical-path
-
-    # Run with verbose output
-    mrp -scenario examples/apollo_saturn_v_stack -verbose
-`)
-}
-
-type OutputConfig struct {
-	Format              string
-	OutputDir           string
-	Verbose             bool
-	ExplosionTime       time.Duration
-	InputFiles          map[string]string
-	CriticalPathResults []*mrp.CriticalPathAnalysis
 }
