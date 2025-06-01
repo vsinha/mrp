@@ -189,3 +189,42 @@ func ValidatePartNumberUniqueness(items []entities.Item) *ValidationResult {
 
 	return result
 }
+
+// ValidateBOMItemConsistency validates that all part numbers in BOM lines exist as items
+func ValidateBOMItemConsistency(bomLines []entities.BOMLine, items []entities.Item) *ValidationResult {
+	result := &ValidationResult{
+		OrphanedParts: make([]entities.PartNumber, 0),
+		Errors:        make([]string, 0),
+	}
+
+	// Create set of valid part numbers from items
+	validParts := make(map[entities.PartNumber]bool)
+	for _, item := range items {
+		validParts[item.PartNumber] = true
+	}
+
+	// Check all part numbers referenced in BOM lines
+	referencedParts := make(map[entities.PartNumber]bool)
+
+	for _, line := range bomLines {
+		// Track both parent and child part numbers
+		referencedParts[line.ParentPN] = true
+		referencedParts[line.ChildPN] = true
+	}
+
+	// Find orphaned parts (referenced in BOM but not defined as items)
+	for partNumber := range referencedParts {
+		if !validParts[partNumber] {
+			result.OrphanedParts = append(result.OrphanedParts, partNumber)
+		}
+	}
+
+	if len(result.OrphanedParts) > 0 {
+		result.Errors = append(
+			result.Errors,
+			fmt.Sprintf("BOM references undefined part numbers: %v", result.OrphanedParts),
+		)
+	}
+
+	return result
+}

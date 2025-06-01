@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/vsinha/mrp/pkg/application/services"
 	"github.com/vsinha/mrp/pkg/domain/entities"
+	"github.com/vsinha/mrp/pkg/domain/services/bom_validator"
 	"github.com/vsinha/mrp/pkg/infrastructure/repositories/csv"
 	"github.com/vsinha/mrp/pkg/infrastructure/repositories/memory"
 	"github.com/vsinha/mrp/pkg/interfaces/cli/output"
@@ -112,6 +114,31 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	err = itemRepo.LoadItems(items)
 	if err != nil {
 		return fmt.Errorf("failed to load items into repository: %w", err)
+	}
+
+	// Validate BOM-Item consistency
+	if c.config.Verbose {
+		fmt.Println("🔍 Validating BOM-Item consistency...")
+	}
+
+	itemSlice := make([]entities.Item, len(items))
+	for i, item := range items {
+		itemSlice[i] = *item
+	}
+
+	bomSlice := make([]entities.BOMLine, len(bomLines))
+	for i, line := range bomLines {
+		bomSlice[i] = *line
+	}
+
+	consistencyValidation := bom_validator.ValidateBOMItemConsistency(bomSlice, itemSlice)
+	if len(consistencyValidation.Errors) > 0 {
+		return fmt.Errorf("BOM-Item consistency validation failed: %s",
+			strings.Join(consistencyValidation.Errors, "; "))
+	}
+
+	if c.config.Verbose && len(consistencyValidation.OrphanedParts) == 0 {
+		fmt.Println("✅ BOM-Item consistency validation passed")
 	}
 
 	inventoryRepo := memory.NewInventoryRepository()
