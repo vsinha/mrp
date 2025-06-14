@@ -25,8 +25,30 @@ func TestItem_Validation(t *testing.T) {
 		expectError string
 		makeBuyCode MakeBuyCode
 	}{
-		{"empty part number", "", "desc", 1, LotForLot, 0, 100, 0, "EA", "part number cannot be empty", MakeBuyMake},
-		{"empty description", "PART", "", 1, LotForLot, 0, 100, 0, "EA", "description cannot be empty",
+		{
+			"empty part number",
+			"",
+			"desc",
+			1,
+			LotForLot,
+			0,
+			100,
+			0,
+			"EA",
+			"part number cannot be empty",
+			MakeBuyMake,
+		},
+		{
+			"empty description",
+			"PART",
+			"",
+			1,
+			LotForLot,
+			0,
+			100,
+			0,
+			"EA",
+			"description cannot be empty",
 			MakeBuyMake,
 		},
 		{
@@ -81,7 +103,19 @@ func TestItem_Validation(t *testing.T) {
 			"safety stock cannot be negative, got -1",
 			MakeBuyMake,
 		},
-		{"empty UOM", "PART", "desc", 1, LotForLot, 0, 100, 0, "", "unit of measure cannot be empty", MakeBuyMake},
+		{
+			"empty UOM",
+			"PART",
+			"desc",
+			1,
+			LotForLot,
+			0,
+			100,
+			0,
+			"",
+			"unit of measure cannot be empty",
+			MakeBuyMake,
+		},
 		{
 			"MinimumQty with zero order qty",
 			"PART",

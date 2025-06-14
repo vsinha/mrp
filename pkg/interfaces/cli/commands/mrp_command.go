@@ -74,7 +74,7 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	}
 
 	csvLoader := csv.NewLoader()
-	
+
 	// Track individual loading times
 	var loadStart time.Time
 
@@ -104,7 +104,7 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 		fmt.Printf(" ✅ %d BOM lines loaded in %v\n", len(bomLines), time.Since(loadStart))
 	}
 
-	// Load Inventory  
+	// Load Inventory
 	if c.config.Verbose {
 		loadStart = time.Now()
 		fmt.Printf("  🔄 Loading inventory from %s...", files["Inventory"])
@@ -114,7 +114,7 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 		return fmt.Errorf("error loading inventory: %w", err)
 	}
 	if c.config.Verbose {
-		fmt.Printf(" ✅ %d lot + %d serial inventory records loaded in %v\n", 
+		fmt.Printf(" ✅ %d lot + %d serial inventory records loaded in %v\n",
 			len(lotInventory), len(serialInventory), time.Since(loadStart))
 	}
 
@@ -237,7 +237,12 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 		loadStart = time.Now()
 		fmt.Print("  🔄 Creating Critical Path service...")
 	}
-	criticalPathService := criticalpath.NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
+	criticalPathService := criticalpath.NewCriticalPathService(
+		bomRepo,
+		itemRepo,
+		inventoryRepo,
+		nil,
+	)
 	if c.config.Verbose {
 		fmt.Printf(" ✅ Done in %v\n", time.Since(loadStart))
 	}
@@ -263,9 +268,17 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 	// Run MRP explosion
 	if c.config.Verbose {
 		fmt.Println("🚀 Starting MRP explosion process...")
-		fmt.Printf("  📊 Processing %d demand(s) across %d unique part(s)\n", len(demands), len(items))
+		fmt.Printf(
+			"  📊 Processing %d demand(s) across %d unique part(s)\n",
+			len(demands),
+			len(items),
+		)
 		fmt.Printf("  🔗 Using %d BOM relationships\n", len(bomLines))
-		fmt.Printf("  📦 Available inventory: %d lot + %d serial records\n", len(lotInventory), len(serialInventory))
+		fmt.Printf(
+			"  📦 Available inventory: %d lot + %d serial records\n",
+			len(lotInventory),
+			len(serialInventory),
+		)
 		fmt.Println()
 	}
 
@@ -311,7 +324,7 @@ func (c *MRPCommand) Execute(ctx context.Context) error {
 
 		for i, demand := range demands {
 			if c.config.Verbose {
-				fmt.Printf("  🔄 Analyzing critical path for %s (%d/%d)...", 
+				fmt.Printf("  🔄 Analyzing critical path for %s (%d/%d)...",
 					demand.PartNumber, i+1, len(demands))
 				loadStart = time.Now()
 			}

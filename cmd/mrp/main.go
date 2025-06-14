@@ -24,6 +24,8 @@ func main() {
 		runMRPCommand(ctx, os.Args[2:])
 	case "generate":
 		runGenerateCommand(ctx, os.Args[2:])
+	case "incremental":
+		runIncrementalCommand(ctx, os.Args[2:])
 	case "help", "--help", "-h":
 		printUsage()
 	default:
@@ -89,7 +91,11 @@ func runGenerateCommand(ctx context.Context, args []string) {
 		items     = flagSet.Int("items", 0, "Number of items to generate (required)")
 		maxDepth  = flagSet.Int("max-depth", 0, "Maximum depth of BOM tree (required)")
 		demands   = flagSet.Int("demands", 0, "Number of demand lines to generate (required)")
-		inventory = flagSet.String("inventory", "", "Inventory multiplier (e.g., 0.5, 4.0) (required)")
+		inventory = flagSet.String(
+			"inventory",
+			"",
+			"Inventory multiplier (e.g., 0.5, 4.0) (required)",
+		)
 		outputDir = flagSet.String("output", "", "Output directory for generated files (required)")
 		seed      = flagSet.Int64("seed", 0, "Random seed for reproducible generation (optional)")
 		verbose   = flagSet.Bool("verbose", false, "Enable verbose output")
@@ -139,6 +145,45 @@ func runGenerateCommand(ctx context.Context, args []string) {
 	}
 }
 
+func runIncrementalCommand(ctx context.Context, args []string) {
+	flagSet := flag.NewFlagSet("incremental", flag.ExitOnError)
+
+	var (
+		scenarioDir = flagSet.String(
+			"scenario",
+			"",
+			"Path to scenario directory containing CSV files",
+		)
+		bomFile       = flagSet.String("bom", "", "Path to BOM CSV file")
+		itemsFile     = flagSet.String("items", "", "Path to items CSV file")
+		inventoryFile = flagSet.String("inventory", "", "Path to inventory CSV file")
+		demandsFile   = flagSet.String("demands", "", "Path to demands CSV file")
+		verbose       = flagSet.Bool("verbose", false, "Enable verbose output")
+		help          = flagSet.Bool("help", false, "Show help message")
+	)
+
+	flagSet.Parse(args)
+
+	// Create command configuration
+	config := commands.IncrementalConfig{
+		ScenarioDir:   *scenarioDir,
+		BOMFile:       *bomFile,
+		ItemsFile:     *itemsFile,
+		InventoryFile: *inventoryFile,
+		DemandsFile:   *demandsFile,
+		Verbose:       *verbose,
+		Help:          *help,
+	}
+
+	// Create and execute command
+	cmd := commands.NewIncrementalCommand(config)
+
+	if err := cmd.Execute(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 func printUsage() {
 	fmt.Println(`MRP Planning System
 
@@ -148,6 +193,7 @@ USAGE:
 COMMANDS:
     run         Run MRP analysis on existing scenario
     generate    Generate new test scenarios
+    incremental Interactive incremental MRP session
     help        Show this help message
 
 EXAMPLES:
@@ -156,6 +202,9 @@ EXAMPLES:
 
     # Generate new test scenario
     mrp generate --items 1000 --max-depth 6 --demands 20 --inventory 0.5 --output ./test_scenario
+
+    # Start incremental MRP session
+    mrp incremental --scenario ./examples/apollo_saturn_v
 
 For command-specific help:
     mrp <COMMAND> --help`)

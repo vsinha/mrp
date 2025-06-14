@@ -95,7 +95,10 @@ func NewHTMLVisualization() *HTMLVisualization {
 // GenerateHTML creates an interactive HTML D3.js visualization
 func (hv *HTMLVisualization) GenerateHTML(result *dto.MRPResult, config Config) (string, error) {
 	if config.Verbose {
-		fmt.Printf("    📊 Processing %d planned orders for visualization...\n", len(result.PlannedOrders))
+		fmt.Printf(
+			"    📊 Processing %d planned orders for visualization...\n",
+			len(result.PlannedOrders),
+		)
 	}
 
 	// Build visualization data
@@ -150,7 +153,10 @@ func (hv *HTMLVisualization) GenerateHTML(result *dto.MRPResult, config Config) 
 }
 
 // buildVisualizationData converts MRP results into visualization-ready data
-func (hv *HTMLVisualization) buildVisualizationData(result *dto.MRPResult, config Config) *VisualizationData {
+func (hv *HTMLVisualization) buildVisualizationData(
+	result *dto.MRPResult,
+	config Config,
+) *VisualizationData {
 	vizData := &VisualizationData{
 		Allocations:   result.Allocations,
 		Shortages:     result.ShortageReport,
@@ -232,7 +238,10 @@ func (hv *HTMLVisualization) buildVisualizationData(result *dto.MRPResult, confi
 }
 
 // buildLinksFromDemandTraces attempts to infer relationships from demand traces
-func (hv *HTMLVisualization) buildLinksFromDemandTraces(orders []entities.PlannedOrder, partMap map[entities.PartNumber]*NetworkNode) []NetworkLink {
+func (hv *HTMLVisualization) buildLinksFromDemandTraces(
+	orders []entities.PlannedOrder,
+	partMap map[entities.PartNumber]*NetworkNode,
+) []NetworkLink {
 	var links []NetworkLink
 
 	// Safety limit to prevent memory exhaustion
@@ -240,46 +249,68 @@ func (hv *HTMLVisualization) buildLinksFromDemandTraces(orders []entities.Planne
 	const maxLinksGenerated = 50000
 
 	numOrders := len(orders)
-	
+
 	// Add memory monitoring
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
-	fmt.Printf("  📊 Memory before link generation: %d MB allocated, %d MB in use\n", 
+	fmt.Printf("  📊 Memory before link generation: %d MB allocated, %d MB in use\n",
 		memStats.Alloc/1024/1024, memStats.Sys/1024/1024)
 
 	if numOrders > maxOrdersForLinkGeneration {
-		fmt.Printf("  ⚠️  WARNING: %d orders exceeds safe limit of %d for link generation\n", numOrders, maxOrdersForLinkGeneration)
-		fmt.Printf("  🔄 Processing only first %d orders to prevent memory exhaustion\n", maxOrdersForLinkGeneration)
+		fmt.Printf(
+			"  ⚠️  WARNING: %d orders exceeds safe limit of %d for link generation\n",
+			numOrders,
+			maxOrdersForLinkGeneration,
+		)
+		fmt.Printf(
+			"  🔄 Processing only first %d orders to prevent memory exhaustion\n",
+			maxOrdersForLinkGeneration,
+		)
 		orders = orders[:maxOrdersForLinkGeneration]
 		numOrders = maxOrdersForLinkGeneration
 	}
 
-	fmt.Printf("  🔄 Processing %d orders (O(n²) = %d comparisons)\n", numOrders, numOrders*numOrders)
+	fmt.Printf(
+		"  🔄 Processing %d orders (O(n²) = %d comparisons)\n",
+		numOrders,
+		numOrders*numOrders,
+	)
 
 	// This is a simplified approach - in practice you'd want access to the BOM
 	// to build proper parent-child relationships
 	for i, order := range orders {
 		if i%100 == 0 {
-			fmt.Printf("  📈 Processing order %d/%d (%0.1f%%)...\n", i, numOrders, float64(i)/float64(numOrders)*100)
-			
+			fmt.Printf(
+				"  📈 Processing order %d/%d (%0.1f%%)...\n",
+				i,
+				numOrders,
+				float64(i)/float64(numOrders)*100,
+			)
+
 			// Check memory usage periodically
 			runtime.ReadMemStats(&memStats)
 			if memStats.Alloc > 2*1024*1024*1024 { // 2GB limit
-				fmt.Printf("  🛑 MEMORY LIMIT REACHED: %d MB allocated, stopping link generation\n", memStats.Alloc/1024/1024)
+				fmt.Printf(
+					"  🛑 MEMORY LIMIT REACHED: %d MB allocated, stopping link generation\n",
+					memStats.Alloc/1024/1024,
+				)
 				break
 			}
 		}
-		
+
 		// Look for other orders that might be parents (crude heuristic)
 		for j, potentialParent := range orders {
 			if len(links) >= maxLinksGenerated {
-				fmt.Printf("  🛑 LINK LIMIT REACHED: Generated %d links, stopping to prevent memory exhaustion\n", maxLinksGenerated)
+				fmt.Printf(
+					"  🛑 LINK LIMIT REACHED: Generated %d links, stopping to prevent memory exhaustion\n",
+					maxLinksGenerated,
+				)
 				runtime.ReadMemStats(&memStats)
-				fmt.Printf("  📊 Memory at link limit: %d MB allocated, %d MB in use\n", 
+				fmt.Printf("  📊 Memory at link limit: %d MB allocated, %d MB in use\n",
 					memStats.Alloc/1024/1024, memStats.Sys/1024/1024)
 				return links
 			}
-			
+
 			if i != j && order.DueDate.Before(potentialParent.StartDate) {
 				// This order finishes before the other starts - possible dependency
 				link := NetworkLink{
@@ -295,7 +326,7 @@ func (hv *HTMLVisualization) buildLinksFromDemandTraces(orders []entities.Planne
 	}
 
 	runtime.ReadMemStats(&memStats)
-	fmt.Printf("  📊 Memory after link generation: %d MB allocated, %d MB in use\n", 
+	fmt.Printf("  📊 Memory after link generation: %d MB allocated, %d MB in use\n",
 		memStats.Alloc/1024/1024, memStats.Sys/1024/1024)
 	fmt.Printf("  🔗 Found %d links based on demand traces\n", len(links))
 	return links

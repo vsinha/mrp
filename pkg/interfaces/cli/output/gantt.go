@@ -103,12 +103,20 @@ func (gc *GanttChart) GenerateSVG(result *dto.MRPResult) string {
 	var svg strings.Builder
 
 	// SVG header
-	svg.WriteString(fmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">`, gc.Width, gc.Height))
+	svg.WriteString(
+		fmt.Sprintf(
+			`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">`,
+			gc.Width,
+			gc.Height,
+		),
+	)
 	svg.WriteString(`<defs>`)
 	svg.WriteString(`<style>`)
 	svg.WriteString(`.part-label { font-family: Arial, sans-serif; font-size: 12px; fill: #333; }`)
 	svg.WriteString(`.time-label { font-family: Arial, sans-serif; font-size: 10px; fill: #666; }`)
-	svg.WriteString(`.title { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; fill: #333; }`)
+	svg.WriteString(
+		`.title { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; fill: #333; }`,
+	)
 	svg.WriteString(`.grid-line { stroke: #e0e0e0; stroke-width: 1; }`)
 	svg.WriteString(`.order-bar { stroke: #333; stroke-width: 1; }`)
 	svg.WriteString(`.order-text { font-family: Arial, sans-serif; font-size: 9px; fill: white; }`)
@@ -119,7 +127,12 @@ func (gc *GanttChart) GenerateSVG(result *dto.MRPResult) string {
 	svg.WriteString(fmt.Sprintf(`<rect width="%d" height="%d" fill="white"/>`, gc.Width, gc.Height))
 
 	// Title
-	svg.WriteString(fmt.Sprintf(`<text x="%d" y="30" class="title">MRP Production Schedule - Forward Scheduling</text>`, gc.Width/2))
+	svg.WriteString(
+		fmt.Sprintf(
+			`<text x="%d" y="30" class="title">MRP Production Schedule - Forward Scheduling</text>`,
+			gc.Width/2,
+		),
+	)
 
 	// Create bars and organize by part
 	bars := gc.createBars(result.PlannedOrders)
@@ -229,14 +242,21 @@ func (gc *GanttChart) drawTimeAxis(svg *strings.Builder) {
 		x := gc.MarginLeft + int(float64(offset)/float64(totalDuration)*float64(chartWidth))
 
 		if x >= gc.MarginLeft && x <= gc.Width-gc.MarginRight {
-			svg.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="time-label" text-anchor="middle">%s</text>`,
-				x, gc.Height-gc.MarginBottom+15, t.Format(labelFormat)))
+			svg.WriteString(
+				fmt.Sprintf(`<text x="%d" y="%d" class="time-label" text-anchor="middle">%s</text>`,
+					x, gc.Height-gc.MarginBottom+15, t.Format(labelFormat)),
+			)
 		}
 	}
 
 	// Time axis line
-	svg.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" class="grid-line"/>`,
-		gc.MarginLeft, gc.Height-gc.MarginBottom, gc.Width-gc.MarginRight, gc.Height-gc.MarginBottom))
+	svg.WriteString(fmt.Sprintf(
+		`<line x1="%d" y1="%d" x2="%d" y2="%d" class="grid-line"/>`,
+		gc.MarginLeft,
+		gc.Height-gc.MarginBottom,
+		gc.Width-gc.MarginRight,
+		gc.Height-gc.MarginBottom,
+	))
 }
 
 // FIXED: drawTimeGrid to use consistent row calculation with proper bounds
@@ -279,7 +299,10 @@ func (gc *GanttChart) drawTimeGrid(svg *strings.Builder, numRows int) {
 }
 
 // FIXED: drawPartRows with proper spacing calculation to avoid time axis overlap
-func (gc *GanttChart) drawPartRows(svg *strings.Builder, partRows map[entities.PartNumber][]GanttBar) {
+func (gc *GanttChart) drawPartRows(
+	svg *strings.Builder,
+	partRows map[entities.PartNumber][]GanttBar,
+) {
 	// Sort parts by earliest start time for better visualization
 	var parts []entities.PartNumber
 	for part := range partRows {
@@ -318,8 +341,10 @@ func (gc *GanttChart) drawPartRows(svg *strings.Builder, partRows map[entities.P
 		bars := partRows[part]
 
 		// Part label - positioned further left to avoid overlap
-		svg.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="part-label" text-anchor="end">%s</text>`,
-			gc.MarginLeft-15, y+adjustedRowHeight/2+4, string(part)))
+		svg.WriteString(
+			fmt.Sprintf(`<text x="%d" y="%d" class="part-label" text-anchor="end">%s</text>`,
+				gc.MarginLeft-15, y+adjustedRowHeight/2+4, string(part)),
+		)
 
 		// Horizontal row line - FIXED: position properly with adjusted height
 		svg.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" class="grid-line"/>`,
@@ -338,8 +363,10 @@ func (gc *GanttChart) drawBar(svg *strings.Builder, bar GanttBar, rowY int, rowH
 	barY := rowY + 2
 
 	// Draw bar rectangle
-	svg.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="%s" class="order-bar"/>`,
-		bar.X, barY, bar.Width, barHeight, bar.Color))
+	svg.WriteString(
+		fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="%s" class="order-bar"/>`,
+			bar.X, barY, bar.Width, barHeight, bar.Color),
+	)
 
 	// Add text if bar is wide enough
 	if bar.Width > 40 {
@@ -352,8 +379,10 @@ func (gc *GanttChart) drawBar(svg *strings.Builder, bar GanttBar, rowY int, rowH
 			text = fmt.Sprintf("Split %d: %d", bar.Split, bar.Quantity)
 		}
 
-		svg.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="order-text" text-anchor="middle">%s</text>`,
-			textX, textY, text))
+		svg.WriteString(
+			fmt.Sprintf(`<text x="%d" y="%d" class="order-text" text-anchor="middle">%s</text>`,
+				textX, textY, text),
+		)
 	}
 
 	// Tooltip (SVG title element)
@@ -372,12 +401,19 @@ func (gc *GanttChart) drawLegend(svg *strings.Builder) {
 	legendY := 50
 
 	// Legend background
-	svg.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="180" height="60" fill="white" stroke="#ccc" stroke-width="1"/>`,
-		legendX, legendY))
+	svg.WriteString(
+		fmt.Sprintf(
+			`<rect x="%d" y="%d" width="180" height="60" fill="white" stroke="#ccc" stroke-width="1"/>`,
+			legendX,
+			legendY,
+		),
+	)
 
 	// Legend title
-	svg.WriteString(fmt.Sprintf(`<text x="%d" y="%d" class="part-label" font-weight="bold">Legend</text>`,
-		legendX+10, legendY+15))
+	svg.WriteString(
+		fmt.Sprintf(`<text x="%d" y="%d" class="part-label" font-weight="bold">Legend</text>`,
+			legendX+10, legendY+15),
+	)
 
 	// Legend items
 	items := []struct {

@@ -637,7 +637,13 @@ func (s *MRPService) scheduleForward(
 		}
 
 		// Split orders if they exceed max order quantity and schedule sequentially
-		partOrders := s.splitOrderByMaxQtyForward(orderQty, node.Item, netReq, orderType, earliestStart)
+		partOrders := s.splitOrderByMaxQtyForward(
+			orderQty,
+			node.Item,
+			netReq,
+			orderType,
+			earliestStart,
+		)
 		allOrders = append(allOrders, partOrders...)
 
 		// Record completion time for this part (when last order completes)

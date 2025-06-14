@@ -449,8 +449,12 @@ func TestMRPService_ExplodeDemand_OrderSplitting(t *testing.T) {
 
 		// Check forward sequential scheduling (each order due after the previous one)
 		if i > 0 && !order.DueDate.After(previousDueDate) {
-			t.Errorf("Order %d due date %v should be after previous due date %v for forward sequential ordering",
-				i, order.DueDate, previousDueDate)
+			t.Errorf(
+				"Order %d due date %v should be after previous due date %v for forward sequential ordering",
+				i,
+				order.DueDate,
+				previousDueDate,
+			)
 		}
 		previousDueDate = order.DueDate
 
@@ -595,8 +599,11 @@ func TestMRPService_ForwardScheduling_BasicDependencyTiming(t *testing.T) {
 	}
 
 	if !parentOrder.StartDate.Equal(childOrder.DueDate) {
-		t.Errorf("Parent assembly start date %v should equal child component due date %v (forward scheduling)",
-			parentOrder.StartDate, childOrder.DueDate)
+		t.Errorf(
+			"Parent assembly start date %v should equal child component due date %v (forward scheduling)",
+			parentOrder.StartDate,
+			childOrder.DueDate,
+		)
 	}
 
 	// Verify lead times are respected
@@ -741,7 +748,9 @@ func TestMRPService_ForwardScheduling_InventoryImpact(t *testing.T) {
 		}
 		// Should NOT have order for COMP_WITH_INVENTORY (covered by inventory)
 		if result.PlannedOrders[i].PartNumber == "COMP_WITH_INVENTORY" {
-			t.Errorf("Should not have production order for COMP_WITH_INVENTORY (covered by inventory)")
+			t.Errorf(
+				"Should not have production order for COMP_WITH_INVENTORY (covered by inventory)",
+			)
 		}
 	}
 
@@ -757,8 +766,11 @@ func TestMRPService_ForwardScheduling_InventoryImpact(t *testing.T) {
 	// (Component with inventory is available immediately, so doesn't delay assembly)
 
 	if !assemblyOrder.StartDate.Equal(componentOrder.DueDate) {
-		t.Errorf("Assembly start date %v should equal component due date %v (forward scheduling with inventory)",
-			assemblyOrder.StartDate, componentOrder.DueDate)
+		t.Errorf(
+			"Assembly start date %v should equal component due date %v (forward scheduling with inventory)",
+			assemblyOrder.StartDate,
+			componentOrder.DueDate,
+		)
 	}
 
 	// Verify inventory allocation
@@ -771,8 +783,10 @@ func TestMRPService_ForwardScheduling_InventoryImpact(t *testing.T) {
 		if allocation.PartNumber == "COMP_WITH_INVENTORY" && allocation.AllocatedQty > 0 {
 			foundInventoryAllocation = true
 			if allocation.RemainingDemand != 0 {
-				t.Errorf("Expected full allocation for COMP_WITH_INVENTORY, got remaining demand %d",
-					allocation.RemainingDemand)
+				t.Errorf(
+					"Expected full allocation for COMP_WITH_INVENTORY, got remaining demand %d",
+					allocation.RemainingDemand,
+				)
 			}
 		}
 	}

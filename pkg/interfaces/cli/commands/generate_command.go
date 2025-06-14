@@ -61,8 +61,13 @@ func (cmd *GenerateCommand) Execute(ctx context.Context) error {
 	}
 
 	if cmd.config.Verbose {
-		fmt.Printf("🔧 Generating scenario with %d items, max depth %d, %d demands, %.1fx inventory\n",
-			cmd.config.Items, cmd.config.MaxDepth, cmd.config.Demands, cmd.config.Inventory)
+		fmt.Printf(
+			"🔧 Generating scenario with %d items, max depth %d, %d demands, %.1fx inventory\n",
+			cmd.config.Items,
+			cmd.config.MaxDepth,
+			cmd.config.Demands,
+			cmd.config.Inventory,
+		)
 		fmt.Printf("📁 Output directory: %s\n", cmd.config.OutputDir)
 		fmt.Printf("🎲 Random seed: %d\n", cmd.config.Seed)
 	}
@@ -228,7 +233,11 @@ func (cmd *GenerateCommand) generateBOMTree() (map[string]*BOMNode, error) {
 }
 
 // findShareableParts finds existing parts that can be shared, avoiding circular references
-func (cmd *GenerateCommand) findShareableParts(nodes map[string]*BOMNode, maxLevel int, parent *BOMNode) []*BOMNode {
+func (cmd *GenerateCommand) findShareableParts(
+	nodes map[string]*BOMNode,
+	maxLevel int,
+	parent *BOMNode,
+) []*BOMNode {
 	var candidates []*BOMNode
 	for _, node := range nodes {
 		if node.Level >= maxLevel-1 && len(node.Parents) < 3 { // Don't over-share
@@ -248,7 +257,10 @@ func (cmd *GenerateCommand) isAncestor(candidate, node *BOMNode) bool {
 }
 
 // isAncestorHelper recursively checks for ancestry with cycle detection
-func (cmd *GenerateCommand) isAncestorHelper(candidate, node *BOMNode, visited map[string]bool) bool {
+func (cmd *GenerateCommand) isAncestorHelper(
+	candidate, node *BOMNode,
+	visited map[string]bool,
+) bool {
 	if visited[node.PartNumber] {
 		return false // Avoid infinite loops
 	}
@@ -275,7 +287,10 @@ func (cmd *GenerateCommand) generateItems(nodes map[string]*BOMNode) error {
 	defer file.Close()
 
 	// Write header
-	fmt.Fprintln(file, "part_number,description,lead_time_days,lot_size_rule,min_order_qty,max_order_qty,safety_stock,unit_of_measure,make_buy_code")
+	fmt.Fprintln(
+		file,
+		"part_number,description,lead_time_days,lot_size_rule,min_order_qty,max_order_qty,safety_stock,unit_of_measure,make_buy_code",
+	)
 
 	// Generate items
 	for _, node := range nodes {
@@ -535,7 +550,12 @@ func (cmd *GenerateCommand) calculatePartCounts(nodes map[string]*BOMNode) map[s
 }
 
 // explodePart recursively calculates part requirements with better cycle detection
-func (cmd *GenerateCommand) explodePart(node *BOMNode, qty int, counts map[string]int, visited map[string]bool) {
+func (cmd *GenerateCommand) explodePart(
+	node *BOMNode,
+	qty int,
+	counts map[string]int,
+	visited map[string]bool,
+) {
 	// Avoid infinite loops in shared parts - just use part number for visited check
 	if visited[node.PartNumber] {
 		return
@@ -557,7 +577,14 @@ func (cmd *GenerateCommand) explodePart(node *BOMNode, qty int, counts map[strin
 
 // generateLocation creates realistic location names
 func (cmd *GenerateCommand) generateLocation() string {
-	locations := []string{"FACTORY_A", "FACTORY_B", "WAREHOUSE_1", "WAREHOUSE_2", "PLANT_NORTH", "PLANT_SOUTH"}
+	locations := []string{
+		"FACTORY_A",
+		"FACTORY_B",
+		"WAREHOUSE_1",
+		"WAREHOUSE_2",
+		"PLANT_NORTH",
+		"PLANT_SOUTH",
+	}
 	return locations[cmd.rand.Intn(len(locations))]
 }
 

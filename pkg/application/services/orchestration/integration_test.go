@@ -17,7 +17,12 @@ func TestPlanningOrchestrator_AnalyzeCriticalPathWithMRPResults(t *testing.T) {
 	bomRepo, itemRepo, inventoryRepo, demandRepo := testinghelpers.BuildAerospaceTestData()
 
 	mrpService := mrp.NewMRPService()
-	criticalPathService := criticalpath.NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
+	criticalPathService := criticalpath.NewCriticalPathService(
+		bomRepo,
+		itemRepo,
+		inventoryRepo,
+		nil,
+	)
 	orchestrator := NewPlanningOrchestrator(
 		mrpService,
 		criticalPathService,
@@ -335,7 +340,12 @@ func TestMRPService_CriticalPathAnalysis_SimpleCase(t *testing.T) {
 
 	// Create MRP service
 	mrpService := mrp.NewMRPService()
-	criticalPathService := criticalpath.NewCriticalPathService(bomRepo, itemRepo, inventoryRepo, nil)
+	criticalPathService := criticalpath.NewCriticalPathService(
+		bomRepo,
+		itemRepo,
+		inventoryRepo,
+		nil,
+	)
 	orchestrator := NewPlanningOrchestrator(
 		mrpService,
 		criticalPathService,

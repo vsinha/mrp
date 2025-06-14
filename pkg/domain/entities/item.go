@@ -91,7 +91,11 @@ func NewItem(
 		return nil, fmt.Errorf("maximum order quantity must be positive, got %d", maxOrderQty)
 	}
 	if maxOrderQty < minOrderQty {
-		return nil, fmt.Errorf("maximum order quantity (%d) cannot be less than minimum order quantity (%d)", maxOrderQty, minOrderQty)
+		return nil, fmt.Errorf(
+			"maximum order quantity (%d) cannot be less than minimum order quantity (%d)",
+			maxOrderQty,
+			minOrderQty,
+		)
 	}
 	if safetyStock < 0 {
 		return nil, fmt.Errorf("safety stock cannot be negative, got %d", safetyStock)

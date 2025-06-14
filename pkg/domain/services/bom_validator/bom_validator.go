@@ -191,7 +191,10 @@ func ValidatePartNumberUniqueness(items []entities.Item) *ValidationResult {
 }
 
 // ValidateBOMItemConsistency validates that all part numbers in BOM lines exist as items
-func ValidateBOMItemConsistency(bomLines []entities.BOMLine, items []entities.Item) *ValidationResult {
+func ValidateBOMItemConsistency(
+	bomLines []entities.BOMLine,
+	items []entities.Item,
+) *ValidationResult {
 	result := &ValidationResult{
 		OrphanedParts: make([]entities.PartNumber, 0),
 		Errors:        make([]string, 0),
